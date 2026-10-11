@@ -89,7 +89,7 @@ export function createBackup(all: Record<string, unknown>, extensionVersion: str
 
 export function backupFileName(now = new Date()): string {
   const d = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  return `arxiv-notes-backup-${d}.json`;
+  return `arxiv-html-helper-backup-${d}.json`;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +116,7 @@ export function parseBackup(text: string): ParsedBackup {
     throw new BackupError('文件不是有效的 JSON');
   }
   if (!isObj(data) || data.format !== BACKUP_FORMAT) {
-    throw new BackupError('这不是 arXiv 笔记的备份文件');
+    throw new BackupError('这不是 arXiv HTML Helper 的备份文件');
   }
   if (typeof data.version !== 'number' || data.version > BACKUP_VERSION) {
     throw new BackupError('备份文件来自更新版本的插件，请先升级插件');

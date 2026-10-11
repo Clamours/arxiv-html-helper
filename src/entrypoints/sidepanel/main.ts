@@ -75,7 +75,7 @@ function render(): void {
   list.replaceChildren();
   providersEl.replaceChildren();
   if (!state) {
-    titleEl.textContent = 'arXiv 笔记';
+    titleEl.textContent = 'arXiv HTML Helper';
     subEl.textContent = '';
     exportBtn.hidden = true;
     flagBtn.hidden = true;

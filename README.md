@@ -1,4 +1,4 @@
-# arXiv HTML 划线笔记
+# arXiv HTML Helper
 
 Chrome 扩展：在 arXiv HTML 论文页（`arxiv.org/html/…`、ar5iv）上划线、高亮、写笔记。原文和沉浸式翻译 / 陪读蛙显示的译文都可以划。
 

@@ -36,7 +36,7 @@ export default defineConfig({
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
     const forStore = process.env.STORE_BUILD === '1';
     return {
-      name: 'arXiv HTML 划线笔记',
+      name: 'arXiv HTML Helper',
       description: '在 arXiv HTML 页面上划线、高亮、做笔记，支持沉浸式翻译 / 陪读蛙的译文。',
       permissions: ['storage', 'unlimitedStorage', 'sidePanel', 'alarms', ...(clientId ? ['identity'] : [])],
       // 论文库从 arXiv API 获取标题和作者

@@ -129,7 +129,7 @@ function render(): void {
   const shown = entries.filter((e) => inView(e, view, groups));
   const label = viewLabel(view, groups);
   viewTitle.textContent = label;
-  document.title = view === 'all' ? '论文库 · arXiv 笔记' : `${label} · 论文库`;
+  document.title = view === 'all' ? '论文库 · arXiv HTML Helper' : `${label} · 论文库`;
   const total = shown.reduce((n, e) => n + e.annotations.length, 0);
   const notes = shown.reduce((n, e) => n + e.annotations.filter((a) => a.note.trim()).length, 0);
   stats.textContent = [

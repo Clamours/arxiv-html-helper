@@ -58,7 +58,7 @@ describe('createBackup / parseBackup', () => {
 
   it.each([
     ['不是 JSON', 'not json', '文件不是有效的 JSON'],
-    ['别的 JSON', '{"foo":1}', '这不是 arXiv 笔记的备份文件'],
+    ['别的 JSON', '{"foo":1}', '这不是 arXiv HTML Helper 的备份文件'],
     ['更新版本', '{"format":"arxiv-html-notes-backup","version":99,"papers":[]}', '更新版本'],
     ['缺少列表', '{"format":"arxiv-html-notes-backup","version":1}', '缺少论文列表'],
   ])('%s → 报错', (_, text, msg) => {
@@ -177,7 +177,7 @@ describe('planImport：分组', () => {
 });
 
 it('backupFileName 使用本地日期', () => {
-  expect(backupFileName(new Date(2026, 8, 28, 23, 30))).toBe('arxiv-notes-backup-2026-09-28.json');
+  expect(backupFileName(new Date(2026, 8, 28, 23, 30))).toBe('arxiv-html-helper-backup-2026-09-28.json');
 });
 
 describe('planImport：恢复已删除的内容', () => {

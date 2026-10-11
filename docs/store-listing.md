@@ -6,6 +6,10 @@
 
 ## 商品详情（Store listing）
 
+### 名称
+
+不用填：取自 manifest 的 `name`（`wxt.config.ts`），即 **arXiv HTML Helper**。主页、隐私政策、宣传图和扩展页面标题都用这个名字，改名时一起改。
+
 ### 摘要
 
 不用填：后台直接取 manifest 的 `description`（`wxt.config.ts`，最多 132 个字符）：
