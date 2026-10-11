@@ -16,4 +16,7 @@ render() { # $1 = svg, $2 = 输出 png（512px）
 
 render src/assets/icon.svg "$TMP/icon.png"
 for size in 16 32 48 128; do sips -z $size $size "$TMP/icon.png" --out "public/icon/$size.png" >/dev/null; done
-ls -l public/icon
+
+# 项目主页（site/）用的图标
+cp public/icon/128.png site/icon.png
+cp public/icon/32.png site/icon-32.png

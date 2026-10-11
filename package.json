@@ -3,6 +3,7 @@
   "description": "为 arXiv HTML 页面（含沉浸式翻译 / 陪读蛙译文）提供划线高亮与笔记",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "wxt",

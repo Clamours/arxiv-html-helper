@@ -2,6 +2,8 @@
 
 Chrome 扩展：在 arXiv HTML 论文页（`arxiv.org/html/…`、ar5iv）上划线、高亮、写笔记。原文和沉浸式翻译 / 陪读蛙显示的译文都可以划。
 
+项目主页：<https://clamours.github.io/arxiv-html-helper/> · [隐私政策](https://clamours.github.io/arxiv-html-helper/privacy.html)
+
 ## 使用
 
 ```bash
@@ -71,6 +73,8 @@ src/
   entrypoints/ WXT 入口：content、background、sidepanel、library（论文库页，含导入 PDF 的界面）
 scripts/capture-dom.js   在真实页面上抓取翻译插件的 DOM，用于核对选择器
 scripts/mineru-to-html.ts  把 MinerU 导出的 Markdown 转成 HTML 文件（npm run mineru）
+scripts/render-icons.sh    把 src/assets/icon.svg 导出为扩展图标（public/icon/）和主页图标
+site/                      项目主页和隐私政策，推送后由 GitHub Actions 部署到 GitHub Pages
 ```
 
 ## 用真实论文测试
@@ -86,3 +90,7 @@ MinerU 导出的论文（Markdown 格式）：
 MINERU_MD=/path/to/MinerU_markdown_xxx.md npm test          # 转换后做同样的往返测试
 npm run mineru -- /path/to/MinerU_markdown_xxx.md out.html --embed   # 生成 HTML 文件查看效果；--embed 把图片内嵌
 ```
+
+## 许可
+
+[MIT](LICENSE)

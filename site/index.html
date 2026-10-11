@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>arXiv HTML 划线笔记</title>
+  <meta name="description" content="Chrome 扩展：在 arXiv HTML 论文页上划线、高亮、写笔记，原文和沉浸式翻译 / 陪读蛙的译文都能划。">
+  <link rel="icon" href="icon-32.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="icon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="wrap nav">
+    <a class="brand" href="./"><img src="icon.png" alt="">arXiv HTML 划线笔记</a>
+    <nav class="nav-links">
+      <a class="hide-sm" href="#features">功能</a>
+      <a class="hide-sm" href="#install">安装</a>
+      <a href="privacy.html">隐私</a>
+      <a href="https://github.com/Clamours/arxiv-html-helper">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="wrap hero">
+      <div>
+        <h1>在 arXiv 论文上<br><span class="hl">划线</span>、写笔记</h1>
+        <p class="lede">一个 Chrome 扩展。在 arXiv 的 HTML 论文页上高亮和批注，原文和沉浸式翻译、陪读蛙显示的译文都能划；笔记随论文保存，换台电脑也在。</p>
+        <div class="cta">
+          <a class="btn primary" href="#install">安装扩展</a>
+          <a class="btn ghost" href="https://github.com/Clamours/arxiv-html-helper">
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            源代码
+          </a>
+        </div>
+      </div>
+
+      <div class="demo" aria-label="示意图：在论文段落上划线、写笔记">
+        <div class="paper">
+          <h3>3.2.1 Scaled Dot-Product Attention</h3>
+          <p>The input consists of queries and keys of dimension <i>d<sub>k</sub></i>, and values of dimension <i>d<sub>v</sub></i>. We compute the dot products of the query with all keys, <mark class="y">divide each by √<i>d<sub>k</sub></i></mark>, and apply a softmax function to obtain the weights on the values.</p>
+          <p class="tr">输入由维度为 <i>d<sub>k</sub></i> 的查询和键、维度为 <i>d<sub>v</sub></i> 的值组成。我们计算查询与所有键的点积，将每个点积除以 √<i>d<sub>k</sub></i>，再<mark class="g">用 softmax 得到值的权重</mark>。</p>
+        </div>
+        <div class="toolbar" aria-hidden="true">
+          <i class="on" style="background:#ffd60a"></i><i style="background:#34c759"></i><i style="background:#0a84ff"></i><i style="background:#ff375f"></i><i style="background:#bf5af2"></i>
+          <span>笔记</span>
+        </div>
+        <div class="note">
+          <q>divide each by √d<sub>k</sub></q>
+          缩放是为了防止 <i>d<sub>k</sub></i> 较大时点积过大，把 softmax 推进梯度很小的区域。
+        </div>
+      </div>
+    </div>
+
+    <section id="features">
+      <div class="wrap">
+        <h2>功能</h2>
+        <p class="sub">为读 arXiv HTML 论文设计，和翻译插件一起用也不会乱。</p>
+        <div class="grid">
+          <div class="card">
+            <h3><span class="dot" style="background:#ffd60a"></span>划线与笔记</h3>
+            <p>选中文字弹出工具栏，五种颜色一键高亮，或高亮后直接写笔记。点击已有的高亮可以改色、编辑、删除。</p>
+          </div>
+          <div class="card">
+            <h3><span class="dot" style="background:#34c759"></span>原文和译文都能划</h3>
+            <p>支持沉浸式翻译、陪读蛙的双语对照。高亮不修改页面结构，翻译插件重新渲染时也不会丢。</p>
+          </div>
+          <div class="card">
+            <h3><span class="dot" style="background:#0a84ff"></span>译文存档</h3>
+            <p>翻译插件显示过的译文按段落存档。下次打开时不开翻译插件也能看到，措辞不会变，译文上的笔记也不会漂移。</p>
+          </div>
+          <div class="card">
+            <h3><span class="dot" style="background:#ff375f"></span>侧边栏与导出</h3>
+            <p>侧边栏按文档顺序列出所有笔记，点击跳转到原文位置；整篇笔记可以复制为 Markdown。</p>
+          </div>
+          <div class="card">
+            <h3><span class="dot" style="background:#bf5af2"></span>论文库与分组</h3>
+            <p>浏览过的论文自动收进论文库，标题和作者从 arXiv 获取。支持分组、标记、排序，以及按标题、作者、笔记内容搜索。</p>
+          </div>
+          <div class="card">
+            <h3><span class="dot" style="background:#8e8e93"></span>同步、备份、导入 PDF</h3>
+            <p>通过 WebDAV（坚果云等）或 Google Drive 在多台电脑间同步；可导出 / 导入备份。没有 HTML 版的论文可以用 MinerU 把 PDF 转成同样的页面。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="privacy">
+      <div class="wrap">
+        <h2>你的笔记只属于你</h2>
+        <p class="sub">扩展没有自己的服务器，不收集、不统计、不上传任何数据。</p>
+        <div class="privacy-sum">
+          <div><strong>默认只存在本机</strong><p>笔记、论文库、分组和译文存档都保存在浏览器本地。</p></div>
+          <div><strong>同步去向由你决定</strong><p>开启云同步后，数据只写到你自己的 WebDAV 服务器或 Google Drive 的应用专用文件夹。</p></div>
+          <div><strong>用到第三方时会说明</strong><p>论文库向 arXiv API 查询标题和作者；导入 PDF 时文件会上传到 MinerU 解析。</p></div>
+        </div>
+        <p style="margin-top:28px"><a href="privacy.html">阅读完整的隐私政策 →</a></p>
+      </div>
+    </section>
+
+    <section id="install">
+      <div class="wrap">
+        <h2>安装</h2>
+        <p class="sub">Chrome 应用商店版即将上架。现在可以从源码构建：</p>
+        <ol class="steps">
+          <li>下载源代码：<code>git clone https://github.com/Clamours/arxiv-html-helper.git</code></li>
+          <li>安装依赖并构建：<code>npm install</code>，然后 <code>npm run build</code></li>
+          <li>打开 <code>chrome://extensions</code>，开启右上角的"开发者模式"</li>
+          <li>点"加载已解压的扩展程序"，选择项目里的 <code>.output/chrome-mv3</code> 文件夹</li>
+          <li>打开任意一篇 arXiv HTML 论文（如 <a href="https://arxiv.org/html/1706.03762v7">arxiv.org/html/1706.03762v7</a>），选中文字即可开始划线</li>
+        </ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>MIT License · 本项目与 arXiv 及 Cornell University 无任何关联</span>
+      <span><a href="privacy.html">隐私政策</a> · <a href="https://github.com/Clamours/arxiv-html-helper/issues">反馈问题</a></span>
+    </div>
+  </footer>
+</body>
+</html>
