@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Chrome 应用商店的小型宣传图块（440×280）。导出 PNG 见 scripts/render-icons.sh -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; }
+  body { width: 440px; height: 280px; overflow: hidden; }
+  .tile {
+    position: relative; width: 440px; height: 280px; box-sizing: border-box;
+    display: flex; align-items: center; gap: 22px; padding: 0 30px 0 26px;
+    background: #faf8f5; color: #1d1d1f;
+    font-family: -apple-system, 'PingFang SC', sans-serif;
+  }
+  /* 底部一条 arXiv 红 */
+  .tile::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 10px; background: #b31b1b; }
+  .tile img { width: 150px; height: 150px; flex: none; }
+  h1 { margin: 0; font: 700 31px/1.22 Georgia, 'Songti SC', serif; letter-spacing: -.01em; }
+  .hl { background: linear-gradient(transparent 56%, #ffe45c 56%, #ffe45c 94%, transparent 94%); padding: 0 2px; }
+  p { margin: 14px 0 0; font-size: 15px; color: #6e6e73; letter-spacing: .02em; }
+</style>
+</head>
+<body>
+  <div class="tile">
+    <img src="../src/assets/icon.svg" alt="">
+    <div>
+      <h1>arXiv HTML<br><span class="hl">划线</span>笔记</h1>
+      <p>原文 · 译文 · 笔记</p>
+    </div>
+  </div>
+</body>
+</html>
