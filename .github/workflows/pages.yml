@@ -21,6 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: actions/configure-pages@v5
+      # Pages 让浏览器把文件缓存 10 分钟。给 CSS / JS 的地址带上提交号，
+      # 新部署的页面就不会配上浏览器里缓存的旧样式
+      - run: sed -i "s/?v=dev/?v=${GITHUB_SHA::7}/g" site/*.html
       - uses: actions/upload-pages-artifact@v4
         with:
           path: site
