@@ -1,0 +1,13 @@
+<!-- 扩展图标：arXiv 红的笔记本，封面一个衬线体 "a"，底下一道荧光笔划线。字体用系统 Georgia，导出 PNG 见 scripts/render-icons.sh -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- 右上露出的书页 -->
+  <rect x="32" y="12" width="78" height="96" rx="9" fill="#d9dee6"/>
+  <rect x="32" y="12" width="74" height="92" rx="8" fill="#f4f6f9"/>
+  <!-- 封面、书脊 -->
+  <rect x="20" y="18" width="82" height="98" rx="10" fill="#b31b1b"/>
+  <path d="M30 18h4v98h-4c-5.5 0-10-4.5-10-10V28c0-5.5 4.5-10 10-10z" fill="#7d1010"/>
+  <rect x="34" y="18" width="2.5" height="98" fill="#fff" opacity=".18"/>
+  <!-- 荧光笔划线，压住字的底边 -->
+  <path d="M45 75l44-3.6c1.5-.1 2.8 1 2.8 2.5v8.2c0 1.4-1.1 2.6-2.5 2.7L47 87.2c-1.5.1-2.8-1-2.8-2.5v-7.4c0-1.3 1-2.4 2.3-2.5z" fill="#ffd60a"/>
+  <text x="68" y="80" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="56" font-weight="700" fill="#fff">a</text>
+</svg>

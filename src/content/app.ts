@@ -1,22 +1,28 @@
 import { browser } from 'wxt/browser';
-import { ADAPTERS } from '@/adapters';
+import { ADAPTERS, LIVE_ADAPTERS } from '@/adapters';
 import { anchorAnnotation, describeRange, type Anchored } from '@/core/anchor';
 import { DocContext } from '@/core/context';
-import type { PageState, Request, SyncNowRequest } from '@/core/messages';
+import type { PageState, Request, SyncNowRequest, TranslationRequest } from '@/core/messages';
 import { extractMeta, type PaperRef } from '@/core/paper';
 import {
   addAnnotation,
   deleteAnnotation,
   loadAnnotations,
+  loadSavedVisible,
   recordPageMeta,
   updateAnnotation,
   watchAnnotations,
+  watchSavedVisible,
 } from '@/core/storage';
+import { toPaperTranslations, type PaperTranslations, type SavedBlock } from '@/core/translations';
 import type { Annotation, HighlightColor } from '@/core/types';
 import { Highlighter } from './highlighter';
+import { injectSavedStyle, isSavedWrapper, SavedTranslations } from './translations';
 import { PageUi } from './ui';
 
 const REANCHOR_DEBOUNCE_MS = 250;
+/** 新存档的译文攒一会儿再写入 */
+const PERSIST_DEBOUNCE_MS = 1000;
 
 export async function startApp(paper: PaperRef): Promise<void> {
   const root = document.querySelector('article.ltx_document') ?? document.body;
@@ -24,7 +30,58 @@ export async function startApp(paper: PaperRef): Promise<void> {
   const ctx = new DocContext(root, ADAPTERS, (n) => ui.contains(n));
   const hl = new Highlighter();
 
-  let annotations: Annotation[] = await loadAnnotations(paper.id);
+  // ---- 译文存档：先在翻译插件改写原文之前记下原文哈希，再读取存档 ----
+  let recheckTimer: ReturnType<typeof setTimeout> | undefined;
+  let toPersist: SavedBlock[] = [];
+  let persistTimer: ReturnType<typeof setTimeout> | undefined;
+  const saved = new SavedTranslations(ctx, paper.id, {
+    persist(blocks) {
+      toPersist.push(...blocks);
+      clearTimeout(persistTimer);
+      persistTimer = setTimeout(() => void flushSaved(), PERSIST_DEBOUNCE_MS);
+    },
+    recheckIn(ms) {
+      recheckTimer ??= setTimeout(() => {
+        recheckTimer = undefined;
+        reanchor();
+      }, ms + 50);
+    },
+  });
+  saved.prime();
+  injectSavedStyle(document, LIVE_ADAPTERS);
+
+  async function translationRequest(msg: TranslationRequest): Promise<PaperTranslations | null> {
+    try {
+      const rec: unknown = await browser.runtime.sendMessage(msg);
+      return rec ? toPaperTranslations(rec, paper.id) : null;
+    } catch {
+      return null; // 扩展刚更新、background 不可用
+    }
+  }
+
+  async function flushSaved(): Promise<void> {
+    const blocks = toPersist;
+    toPersist = [];
+    const rec = await translationRequest({ type: 'ahh:tr-put', paperId: paper.id, blocks });
+    // 写入失败时这些译文只在本次页面里显示，下次打开页面会重新采集
+    if (!rec) return;
+    saved.acknowledge(blocks);
+    if (saved.setRecord(rec)) reanchor();
+  }
+
+  async function reloadSaved(): Promise<void> {
+    const rec = await translationRequest({ type: 'ahh:tr-load', paperId: paper.id });
+    if (rec && saved.setRecord(rec)) reanchor();
+  }
+
+  const [initialAnnotations, initialSaved, visible] = await Promise.all([
+    loadAnnotations(paper.id),
+    translationRequest({ type: 'ahh:tr-load', paperId: paper.id }),
+    loadSavedVisible(),
+  ]);
+  let annotations: Annotation[] = initialAnnotations;
+  if (initialSaved) saved.setRecord(initialSaved);
+  saved.setVisible(visible);
   // 浏览过的论文自动加入论文库的「待读」；每次打开时刷新标题、版本和最近打开时间。
   // 没有正文（如"该论文没有 HTML 版本"的错误页）时不收录
   const recordMeta = () => void recordPageMeta(extractMeta(document, paper)).catch(() => {});
@@ -34,6 +91,8 @@ export async function startApp(paper: PaperRef): Promise<void> {
 
   function reanchor(): void {
     ctx.resetCache();
+    // 采集新译文、插入或移除存档；改动了页面就重建缓存
+    if (saved.update()) ctx.resetCache();
     anchored = new Map(annotations.map((a) => [a.id, anchorAnnotation(a, ctx)]));
     hl.setAll([...anchored.values()].map((x) => ({ id: x.annotation.id, color: x.annotation.color, ranges: x.ranges })));
     if (editingId) hl.setFocus(editingId);
@@ -42,8 +101,11 @@ export async function startApp(paper: PaperRef): Promise<void> {
 
   // ---- DOM 变化（翻译插件插入/删除译文）后重新定位 ----
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // 只是插入了存档的 wrapper（reanchor 自己做的）时不用再来一遍
+  const ownChange = (r: MutationRecord) =>
+    ui.contains(r.target) || (r.type === 'childList' && !r.removedNodes.length && Array.from(r.addedNodes).every(isSavedWrapper));
   const observer = new MutationObserver((records) => {
-    if (records.every((r) => ui.contains(r.target))) return;
+    if (records.every(ownChange)) return;
     clearTimeout(timer);
     timer = setTimeout(reanchor, REANCHOR_DEBOUNCE_MS);
   });
@@ -51,6 +113,11 @@ export async function startApp(paper: PaperRef): Promise<void> {
 
   watchAnnotations(paper.id, (list) => {
     annotations = list;
+    reanchor();
+  });
+  // 侧边栏里切换了"显示译文存档"
+  watchSavedVisible((v) => {
+    saved.setVisible(v);
     reanchor();
   });
   // 开启了云同步时顺便拉取其他电脑上的改动；写入本地后 watchAnnotations 会更新高亮
@@ -166,6 +233,17 @@ export async function startApp(paper: PaperRef): Promise<void> {
       case 'ahh:delete':
         void deleteAnnotation(paper.id, msg.id);
         return;
+      case 'ahh:saved-clear':
+        // 清除后，页面上翻译插件当前的译文会重新存档
+        void translationRequest({ type: 'ahh:tr-clear', paperId: paper.id }).then((rec) => {
+          if (rec) saved.setRecord(rec);
+          reanchor();
+          sendResponse(pageState());
+        });
+        return true;
+      case 'ahh:tr-changed':
+        if (msg.paperIds.includes(paper.id)) void reloadSaved();
+        return;
     }
   });
 
@@ -175,7 +253,7 @@ export async function startApp(paper: PaperRef): Promise<void> {
     const unplaced = all.filter((x) => !x.ranges.length).sort((a, b) => a.annotation.createdAt - b.annotation.createdAt);
     placed.sort((a, b) => a.ranges[0]!.compareBoundaryPoints(Range.START_TO_START, b.ranges[0]!));
     const roots = ctx.translationRootsIn(root);
-    const providers = ADAPTERS.map((a) => ({
+    const providers = LIVE_ADAPTERS.map((a) => ({
       id: a.id,
       name: a.name,
       count: new Set(roots.filter((t) => t.adapter === a).map((t) => t.source)).size,
@@ -185,6 +263,7 @@ export async function startApp(paper: PaperRef): Promise<void> {
       pageTitle: extractMeta(document, paper).title,
       items: [...placed, ...unplaced].map((x) => ({ annotation: x.annotation, status: x.status })),
       providers,
+      saved: saved.summary(),
     };
   }
 

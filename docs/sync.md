@@ -18,7 +18,9 @@
 
 ## 合并规则
 
-云端只有一个文件 `arxiv-notes-sync.json`。它就是备份文件的格式，可以直接下载下来用"导入备份"导入。每次同步：下载 → 与本地合并 → 写回本地和云端。
+笔记、论文库和分组在一个文件 `arxiv-notes-sync.json` 里。它就是备份文件的格式，可以直接下载下来用"导入备份"导入。每次同步：下载 → 与本地合并 → 写回本地和云端。
+
+译文存档比笔记大得多，单独存放：每篇论文一个 `arxiv-notes-tr-<论文 id>.json`，另有索引 `arxiv-notes-translations.json`，同步时只下载有变化的论文。合并规则见 [saved-translations.md](saved-translations.md)。
 
 - 同一条笔记、同一个分组、同一篇论文的分组和标记：保留修改时间较新的一份
 - 删除也会同步：删除笔记、从论文库移除论文、删除分组时会记下删除时间（`tomb:<paperId>`、`groups-deleted`）。删除之后另一台电脑又改过的内容会保留
@@ -28,7 +30,7 @@
 
 手动"导入备份"仍然只增不删。导入时如果恢复了本机删除过的内容，这些内容的修改时间会改成导入时间，避免同步时又被删掉。
 
-实现：合并规则在 `src/core/sync.ts`、`src/core/tombstones.ts`，同步流程在 `src/sync/engine.ts`，调度在 `src/sync/service.ts`（background）。
+实现：合并规则在 `src/core/sync.ts`、`src/core/tombstones.ts`，同步流程在 `src/sync/engine.ts`（译文存档在 `src/sync/translations.ts`），调度在 `src/sync/service.ts`（background）。
 
 ## WebDAV（以坚果云为例）
 

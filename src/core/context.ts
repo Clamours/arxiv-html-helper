@@ -17,6 +17,8 @@ export interface TranslationAdapter {
   inPlaceSelector: string;
   /** 注入的其他元素（加载动画、错误提示），两层文本都忽略 */
   ignoreSelector?: string;
+  /** 同一个原文块同时有它和其他来源的译文时，只用它（本扩展的译文存档） */
+  preferred?: boolean;
 }
 
 export interface TranslationRoot {
@@ -101,7 +103,7 @@ export class DocContext {
   }
 
   private adapterFor(el: Element, key: 'wrapperSelector' | 'inPlaceSelector'): TranslationAdapter {
-    return this.adapters.find((a) => el.matches(a[key]))!;
+    return this.adapters.find((a) => a[key] && el.matches(a[key]))!;
   }
 
   layerOf(node: Node): Layer {
@@ -121,14 +123,31 @@ export class DocContext {
     return [...found.values()];
   }
 
-  /** 某个原文元素的所有译文 */
+  /** 某个原文元素的译文（有 preferred 来源的译文时只返回它） */
   translationRootsOf(source: Element): TranslationRoot[] {
+    const all = this.allTranslationRootsOf(source);
+    const preferred = all.filter((t) => t.adapter.preferred);
+    return preferred.length ? preferred : all;
+  }
+
+  /** 某个原文元素的所有译文，不论来源 */
+  allTranslationRootsOf(source: Element): TranslationRoot[] {
     const inPlace = this.inPlaceBlockOf(source);
     if (inPlace?.block === source) {
       return [{ root: source, source, adapter: inPlace.adapter, kind: 'in-place' }];
     }
     if (!this.wrapperSel) return [];
     return this.translationRootsIn(source).filter((t) => t.kind === 'wrapper' && t.source === source);
+  }
+
+  /** 块是否被原地替换成了译文（仅译文模式） */
+  isInPlace(block: Element): boolean {
+    return !!this.inPlaceBlockOf(block);
+  }
+
+  /** 块里有翻译插件的加载动画或错误提示（译文还没出来或出错了） */
+  hasPendingTranslation(block: Element): boolean {
+    return !!this.ignoreSel && !!block.querySelector(this.ignoreSel);
   }
 
   /** 原文是否被翻译插件隐藏/替换（仅译文模式） */
@@ -173,7 +192,11 @@ export class DocContext {
   }
 
   private buildTranslation(el: Element): TextMap {
-    const roots = this.translationRootsOf(el);
+    return this.translationMapOf(el, this.translationRootsOf(el));
+  }
+
+  /** 指定的几份译文合起来的文本（不缓存） */
+  translationMapOf(el: Element, roots: TranslationRoot[]): TextMap {
     return buildTextMap(
       roots.map((t) => t.root),
       (child) =>

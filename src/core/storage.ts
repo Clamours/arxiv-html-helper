@@ -216,6 +216,28 @@ export function setFlagged(paperId: string, flagged: boolean): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// 译文存档的显示开关（每台电脑各自设置，不同步）
+// ---------------------------------------------------------------------------
+
+export const SAVED_VISIBLE_KEY = 'saved-translations:visible';
+
+export async function loadSavedVisible(): Promise<boolean> {
+  return (await browser.storage.local.get(SAVED_VISIBLE_KEY))[SAVED_VISIBLE_KEY] !== false;
+}
+
+export async function setSavedVisible(visible: boolean): Promise<void> {
+  await browser.storage.local.set({ [SAVED_VISIBLE_KEY]: visible });
+}
+
+export function watchSavedVisible(cb: (visible: boolean) => void): () => void {
+  const listener = (changes: Record<string, { newValue?: unknown }>, area: string) => {
+    if (area === 'local' && SAVED_VISIBLE_KEY in changes) cb(changes[SAVED_VISIBLE_KEY]!.newValue !== false);
+  };
+  browser.storage.onChanged.addListener(listener);
+  return () => browser.storage.onChanged.removeListener(listener);
+}
+
+// ---------------------------------------------------------------------------
 // 备份与迁移
 // ---------------------------------------------------------------------------
 

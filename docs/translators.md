@@ -47,7 +47,15 @@
 - **原地替换模式**：原文节点里装的已经是译文。被标记的块整体算译文层，原文层笔记显示为 `waiting`（原文未显示）。陪读蛙的标记可能打在 `<cite>` 这类行内元素上，因此判断以块为单位。
 - **不能当作"已翻译"信号的属性**：`data-read-frog-walked`、`data-read-frog-paragraph`（只表示"可翻译"）。沉浸式翻译 1.33.3 的 `data-immersive-translate-walked` / `-paragraph` 不再写到 DOM 上。
 
+## 译文存档
+
+扩展自己的译文存档（见 [saved-translations.md](saved-translations.md)）也按双语模式的结构插入：`span.notranslate.ahh-saved-translation[translate=no]` 追加到原文块内部末尾。存档显示时，同一段里翻译插件的 wrapper 加上 `data-ahh-superseded` 隐藏。
+
 ## 待在真实页面上确认
+
+- 两个插件是否都跳过 `notranslate` / `translate="no"` 的存档 wrapper，不会把存档的中文再翻一遍
+- 段落里插入存档 wrapper 后，插件是否会认为段落内容变了而重新翻译
+- 沉浸式翻译的加载元素 `[data-immersive-translate-loading-id]` 是否在段落内部（存档时据此跳过还没翻完的段落）
 
 - 含公式的 arXiv 段落在仅译文模式下，实际走的是原地替换还是兜底
 - 沉浸式翻译把哪些段落当作行内、哪些当作块级

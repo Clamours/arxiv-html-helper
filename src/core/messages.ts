@@ -1,12 +1,23 @@
 import type { PaperRef } from './paper';
+import type { SavedBlock, SavedSummary } from './translations';
 import type { AnchorStatus, Annotation, HighlightColor } from './types';
 
-/** 侧边栏 → 内容脚本 */
+/** 侧边栏、background → 内容脚本 */
 export type Request =
   | { type: 'ahh:get-state' }
   | { type: 'ahh:scroll-to'; id: string }
   | { type: 'ahh:update'; id: string; patch: { color?: HighlightColor; note?: string } }
-  | { type: 'ahh:delete'; id: string };
+  | { type: 'ahh:delete'; id: string }
+  /** 侧边栏：清除本篇论文的译文存档 */
+  | { type: 'ahh:saved-clear' }
+  /** background：这些论文的译文存档变了（云同步、其他标签页清除了存档） */
+  | { type: 'ahh:tr-changed'; paperIds: string[] };
+
+/** 内容脚本 → background：译文存档的读写，回复 PaperTranslations */
+export type TranslationRequest =
+  | { type: 'ahh:tr-load'; paperId: string }
+  | { type: 'ahh:tr-put'; paperId: string; blocks: SavedBlock[] }
+  | { type: 'ahh:tr-clear'; paperId: string };
 
 /** 内容脚本 → 侧边栏（广播） */
 export interface StateChanged {
@@ -21,6 +32,8 @@ export interface PageState {
   items: { annotation: Annotation; status: AnchorStatus }[];
   /** 当前页面检测到的翻译插件及译文段落数，用于诊断适配器是否生效 */
   providers: { id: string; name: string; count: number }[];
+  /** 译文存档 */
+  saved: SavedSummary;
 }
 
 /**

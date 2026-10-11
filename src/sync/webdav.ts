@@ -2,12 +2,12 @@ import { SYNC_FILE_NAME, webdavFolderUrl, type WebdavConfig } from './config';
 import { request, SyncError, type RemoteFile, type SyncProvider } from './provider';
 
 /**
- * WebDAV（坚果云、Nextcloud、群晖等）：在设置的文件夹里放一个 JSON 文件。
+ * WebDAV（坚果云、Nextcloud、群晖等）：设置的文件夹里的一个 JSON 文件（默认是同步文件，译文存档另有文件）。
  * 用 ETag + If-Match 检测两台电脑同时写入；服务器不支持时退化为直接覆盖。
  */
-export function webdavProvider(config: WebdavConfig): SyncProvider {
+export function webdavProvider(config: WebdavConfig, name = SYNC_FILE_NAME): SyncProvider {
   const folder = webdavFolderUrl(config);
-  const file = folder + SYNC_FILE_NAME;
+  const file = folder + encodeURIComponent(name);
   const auth = `Basic ${base64(`${config.username.trim()}:${config.password}`)}`;
   const unreachable = '无法连接到 WebDAV 服务器，请检查地址和网络';
 

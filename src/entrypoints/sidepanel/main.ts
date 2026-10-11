@@ -6,7 +6,7 @@ import type { Group, Shelf } from '@/core/groups';
 import { quoteOf, toMarkdown } from '@/core/library';
 import type { PageState, Request } from '@/core/messages';
 import { isImportedId } from '@/core/paper';
-import { loadGroups, loadMeta, loadShelf, setFlagged, watchLibrary } from '@/core/storage';
+import { loadGroups, loadMeta, loadShelf, setFlagged, setSavedVisible, watchLibrary } from '@/core/storage';
 import type { AnchorStatus, Annotation } from '@/core/types';
 import { groupChip, openGroupPicker, pickerKey } from '@/shared/group-picker';
 import { CHECK_ICON, COPY_ICON, FLAG_ICON, HIGHLIGHTER_ICON, LIBRARY_ICON, PENCIL_ICON, PLUS_ICON, TRASH_ICON } from '@/shared/icons';
@@ -17,6 +17,10 @@ const list = $('list');
 const titleEl = $('title');
 const subEl = $('sub');
 const providersEl = $('providers');
+const savedEl = $('saved');
+const savedText = $('saved-text');
+const savedToggle = $<HTMLButtonElement>('saved-toggle');
+const savedClear = $<HTMLButtonElement>('saved-clear');
 const groupsEl = $('groups');
 const flagBtn = $<HTMLButtonElement>('flag');
 const exportBtn = $<HTMLButtonElement>('export');
@@ -76,6 +80,7 @@ function render(): void {
     exportBtn.hidden = true;
     flagBtn.hidden = true;
     groupsEl.hidden = true;
+    savedEl.hidden = true;
     list.append(empty('打开一篇 arXiv HTML 论文', '在 arxiv.org/html/… 页面上划线后，笔记会显示在这里'));
     return;
   }
@@ -90,6 +95,7 @@ function render(): void {
   const active = providers.filter((p) => p.count > 0);
   if (active.length) for (const p of active) providersEl.append(chip(`${p.name} · ${p.count} 段译文`, true));
   else providersEl.append(chip('未检测到译文', false));
+  renderSaved(state);
 
   exportBtn.hidden = items.length === 0;
   if (!items.length) {
@@ -120,6 +126,47 @@ function renderShelf(paperId: string): void {
   add.addEventListener('click', () => void openGroupPicker(add, paperId));
   groupsEl.append(add);
 }
+
+/** 译文存档：段落数、显示开关、清除 */
+function renderSaved({ saved }: PageState): void {
+  savedEl.hidden = saved.total === 0;
+  if (!saved.total) return;
+  savedText.textContent = saved.visible
+    ? `译文存档 ${saved.total} 段${saved.shown ? ` · 本页显示 ${saved.shown} 段` : ''}`
+    : `译文存档 ${saved.total} 段 · 已隐藏`;
+  savedText.title = '翻译插件显示过的译文会自动存档；有存档的段落始终显示存档，换电脑、重新翻译都不变';
+  savedToggle.textContent = saved.visible ? '隐藏' : '显示';
+  disarmClear();
+}
+
+let clearArmed: ReturnType<typeof setTimeout> | undefined;
+
+function disarmClear(): void {
+  clearTimeout(clearArmed);
+  clearArmed = undefined;
+  savedClear.classList.remove('armed');
+  savedClear.textContent = '清除';
+  savedClear.title = '清除本篇论文的译文存档；之后页面上翻译插件显示的译文会重新存档';
+}
+
+savedToggle.addEventListener('click', () => {
+  if (state) void setSavedVisible(!state.saved.visible);
+});
+
+// 点两下才清除，避免误操作
+savedClear.addEventListener('click', () => {
+  if (!clearArmed) {
+    savedClear.classList.add('armed');
+    savedClear.textContent = '确认清除？';
+    clearArmed = setTimeout(disarmClear, 3000);
+    return;
+  }
+  disarmClear();
+  void send<PageState>({ type: 'ahh:saved-clear' }).then((s) => {
+    if (s) state = s;
+    render();
+  });
+});
 
 function card(ann: Annotation, status: AnchorStatus): HTMLElement {
   const locatable = status === 'anchored' || status === 'partial';

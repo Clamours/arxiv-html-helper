@@ -18,11 +18,12 @@ npm test
 - 点击已有的高亮可以改颜色、写笔记、删除
 - 点击工具栏里的扩展图标打开侧边栏：按文档顺序列出所有笔记，点击跳转，可导出 Markdown
 - 侧边栏顶部会显示当前论文所在的分组（可加入 / 移出、标记）和检测到的译文段落数（用来判断适配器是否生效）
+- **译文存档**：翻译插件显示过的译文会按段落自动存档。之后打开这篇论文时，有存档的段落始终显示存档的译文：不开翻译插件、换一台电脑、插件重新翻译出不同措辞时都不变，译文层笔记也就不会漂移。侧边栏可以隐藏存档（本机设置）或清除本篇的存档（清除后会重新存档当前显示的译文）。详见 [docs/saved-translations.md](docs/saved-translations.md)
 - 侧边栏右上角的"论文库"会打开一个新标签页，列出所有浏览过的论文（标题、作者、年份从 arXiv API 自动获取）：可按最近笔记 / 最近打开 / 最近加入 / 笔记数 / 标题排序，搜索标题、作者、id、划线和笔记内容，复制 Markdown 或从论文库移除
 - **分组**：一篇论文可以属于多个分组（相当于标签）。浏览过的论文自动加入「待读」（只在第一次打开时加入，手动移出后不会再加回来）。左侧栏按 全部 / 已标记 / 未分组 / 各分组 筛选；分组可以新建、重命名、改颜色、删除，或把整个分组的笔记复制为 Markdown。「待读」可以改名，不能删除
 - 论文库右上角可以**导出备份 / 导入备份**：导出为一个 JSON 文件（全部论文、划线、笔记、分组和标记，含译文层）；导入时先预览，笔记按 id 合并、保留修改时间较新的一份，论文的分组取两边的并集，只增不删，可用于换电脑迁移或定期备份
 - **导入 PDF**：论文库右上角的"导入 PDF"用 MinerU 解析 PDF，生成和 arXiv HTML 结构相同的论文页面（以本地文件打开，翻译插件可用），同样可以划线、写笔记。需要 MinerU Token，并在扩展详情页打开"允许访问文件网址"，详见 [docs/import.md](docs/import.md)
-- **云同步**：论文库右上角的"云同步"可以通过 WebDAV（坚果云等）或 Google Drive 在多台电脑之间自动同步笔记、论文库和分组，删除也会同步。设置方法和合并规则见 [docs/sync.md](docs/sync.md)
+- **云同步**：论文库右上角的"云同步"可以通过 WebDAV（坚果云等）或 Google Drive 在多台电脑之间自动同步笔记、论文库、分组和译文存档，删除也会同步。设置方法和合并规则见 [docs/sync.md](docs/sync.md)
 
 ## 设计要点
 
@@ -30,6 +31,7 @@ npm test
 - **分层文本**：每条笔记属于原文层或译文层。原文层提取文本时跳过译文 wrapper，所以译文插入与否不影响原文偏移。
 - **双重锚点**：每个片段记录块 key（LaTeXML id）、块内偏移，以及引文（exact + 前后各 32 字）。定位顺序是：偏移校验 → 精确搜索 → 模糊匹配 → 原文层全文搜索。
 - **译文会变**：译文层笔记挂靠在对应的原文块上，并保存划线时的整段译文。关闭翻译时状态是 `waiting`；重新翻译后措辞略有变化时靠模糊匹配找回；完全找不到时是 `orphaned`，侧边栏仍然显示引文。
+- **译文存档**：为了让译文本身不变，扩展把翻译插件的译文清洗后存档，再以自己的 wrapper 插回页面（这是唯一会修改页面 DOM 的地方）。存档被当作第三个"翻译插件"适配器，分层和定位逻辑不用改；存档显示时同一段里翻译插件的译文被隐藏。
 - **适配器**：各翻译插件的差异都在 `src/adapters/index.ts` 的选择器配置里，详见 [docs/translators.md](docs/translators.md)。
 
 ## 目录
@@ -50,7 +52,9 @@ src/
     backup.ts    备份文件的生成、校验与合并规则
     tombstones.ts 删除记录
     sync.ts      云同步的数据模型与合并规则
-  sync/        云同步：设置、WebDAV / Google Drive、同步流程、background 里的调度
+    translations.ts 译文存档的数据模型、合并规则、HTML 清洗
+  sync/        云同步：设置、WebDAV / Google Drive、同步流程（含译文存档）、background 里的调度
+  translations/ 译文存档的本机存储（扩展的 IndexedDB）和 background 里的读写服务
   adapters/    翻译插件选择器
   import/      导入 PDF（见 docs/import.md）：MinerU 解析 → arXiv（LaTeXML）风格的 HTML → 本地文件
     mineru-api.ts MinerU 精准解析 API：上传、轮询、下载结果
@@ -62,7 +66,7 @@ src/
     page.ts      完整页面：样式、<html lang>、论文 id
     docs.ts      IndexedDB 里的论文页面
     local-file.ts 写到"下载"文件夹并以 file:// 打开
-  content/     内容脚本：高亮渲染、浮动 UI、MutationObserver
+  content/     内容脚本：高亮渲染、浮动 UI、MutationObserver、译文存档的采集与显示
   shared/      侧边栏和论文库共用的主题、图标、弹出层、分组菜单
   entrypoints/ WXT 入口：content、background、sidepanel、library（论文库页，含导入 PDF 的界面）
 scripts/capture-dom.js   在真实页面上抓取翻译插件的 DOM，用于核对选择器

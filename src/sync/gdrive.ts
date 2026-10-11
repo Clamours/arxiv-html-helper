@@ -53,10 +53,11 @@ async function call(url: string, init: RequestInit = {}, retry = true): Promise<
   return res;
 }
 
-export function gdriveProvider(): SyncProvider {
+/** 应用专用文件夹里的一个文件（默认是同步文件，译文存档另有文件） */
+export function gdriveProvider(name = SYNC_FILE_NAME): SyncProvider {
   return {
     async read(): Promise<RemoteFile> {
-      const q = encodeURIComponent(`name = '${SYNC_FILE_NAME}' and trashed = false`);
+      const q = encodeURIComponent(`name = '${name.replace(/['\\]/g, '\\$&')}' and trashed = false`);
       const res = await call(`${FILES}?spaces=appDataFolder&q=${q}&fields=files(id)&orderBy=createdTime&pageSize=10`);
       const ids = ((await res.json()) as { files?: { id: string }[] }).files?.map((f) => f.id) ?? [];
       const texts = await Promise.all(ids.map(async (id) => (await call(`${FILES}/${id}?alt=media`)).text()));
@@ -74,7 +75,7 @@ export function gdriveProvider(): SyncProvider {
         });
       } else {
         const boundary = `ahh${crypto.randomUUID()}`;
-        const metadata = { name: SYNC_FILE_NAME, parents: ['appDataFolder'], mimeType: 'application/json' };
+        const metadata = { name, parents: ['appDataFolder'], mimeType: 'application/json' };
         const body = [
           `--${boundary}`,
           'Content-Type: application/json; charset=UTF-8',

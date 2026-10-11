@@ -79,7 +79,7 @@ export function roundTripRandomSelections(root: Element): number {
     const texts: Text[] = [];
     const w = document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
     for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
-      if (n.data.trim() && ctx.sourceBlockOf(n) === block && !n.parentElement?.closest('math')) texts.push(n);
+      if (n.data.trim() && ctx.sourceBlockOf(n) === block && !n.parentElement?.closest('math') && !ctx.isForeign(n)) texts.push(n);
     }
     if (!texts.length) continue;
     const a = texts[rand(texts.length)]!;
