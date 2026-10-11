@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>论文库 · arXiv 笔记</title>
+  </head>
+  <body>
+    <div class="layout">
+      <nav id="nav" class="nav" aria-label="论文库分组"></nav>
+      <div class="content">
+        <header>
+          <div class="page">
+            <div class="head-row">
+              <div class="head-text">
+                <h1 id="view-title">全部论文</h1>
+                <div id="stats" class="sub"></div>
+              </div>
+              <div class="head-actions">
+                <button id="import-pdf" class="btn" title="用 MinerU 解析 PDF，生成可划线、可翻译的论文页面"></button>
+                <button id="sync" class="btn" title="在多台电脑之间自动同步笔记、论文库和分组"></button>
+                <button id="export" class="btn" title="把全部论文、划线、笔记和分组保存为一个 JSON 文件，用于备份或迁移到其他电脑"></button>
+                <button id="import" class="btn" title="从备份文件恢复，与现有内容合并"></button>
+                <input id="import-file" type="file" accept=".json,application/json" hidden />
+              </div>
+            </div>
+            <div class="toolbar">
+              <label class="search">
+                <span id="search-icon" class="field-icon"></span>
+                <input id="search" type="search" placeholder="搜索论文、划线或笔记" title="可搜索标题、作者、arXiv 编号、划线内容和笔记" autocomplete="off" />
+              </label>
+              <label class="select">
+                <select id="sort" aria-label="排序">
+                  <option value="recent-note">最近笔记</option>
+                  <option value="recent-open">最近打开</option>
+                  <option value="recent-added">最近加入</option>
+                  <option value="count">划线最多</option>
+                  <option value="title">标题</option>
+                </select>
+                <span id="sort-icon" class="field-icon"></span>
+              </label>
+            </div>
+          </div>
+        </header>
+        <section id="jobs" class="page jobs" aria-label="正在导入" hidden></section>
+        <main id="list" class="page"></main>
+      </div>
+    </div>
+    <dialog id="dialog"></dialog>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

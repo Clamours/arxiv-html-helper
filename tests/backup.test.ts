@@ -1,0 +1,205 @@
+import { describe, expect, it } from 'vitest';
+import { BackupError, backupFileName, createBackup, parseBackup, planImport } from '../src/core/backup';
+import type { Group, Shelf } from '../src/core/groups';
+import type { PaperMeta } from '../src/core/paper';
+import type { Annotation } from '../src/core/types';
+
+function ann(id: string, paperId: string, over: Partial<Annotation> = {}): Annotation {
+  return {
+    id, paperId, paperVersion: 'v1', layer: 'source', color: 'yellow', note: '', createdAt: 1, updatedAt: 1,
+    segments: [{ blockKey: '#S1.p1.1', position: { start: 0, end: 5 }, quote: { exact: 'Hello', prefix: '', suffix: ' world' } }],
+    ...over,
+  };
+}
+const meta = (id: string, over: Partial<PaperMeta> = {}): PaperMeta => ({
+  id, version: 'v1', title: `T ${id}`, authors: ['A'], lastOpenedAt: 10, source: 'page', ...over,
+});
+const roundtrip = (all: Record<string, unknown>) => parseBackup(JSON.stringify(createBackup(all, '0.1.0')));
+const group = (id: string, name: string, over: Partial<Group> = {}): Group => ({
+  id, name, color: 'green', order: 1, createdAt: 1, updatedAt: 1, ...over,
+});
+const shelf = (groups: string[], over: Partial<Shelf> = {}): Shelf => ({ groups, flagged: false, addedAt: 1, updatedAt: 1, ...over });
+
+describe('createBackup / parseBackup', () => {
+  it('无损往返，包含译文层、元数据和分组；收录只浏览过的论文，跳过无关键和空列表', () => {
+    const tr = ann('t', 'B', {
+      layer: 'translation',
+      note: '译文笔记',
+      segments: [{ blockKey: '#S2.p1.1', position: { start: 1, end: 3 }, quote: { exact: '注意', prefix: '', suffix: '' }, translation: { provider: 'read-frog', snapshot: '注意力机制' } }],
+    });
+    const all = {
+      'paper:B': [tr],
+      'meta:B': meta('B', { source: 'api', published: '2017-06-12T00:00:00Z' }),
+      'paper:A': [ann('a1', 'A'), ann('a2', 'A', { color: 'pink', note: 'x' })],
+      'paper:C': [],
+      'meta:D': meta('D'),
+      'shelf:B': { groups: ['g1'], flagged: true, addedAt: 3, updatedAt: 4 },
+      groups: [group('g1', 'RL')],
+      other: 1,
+    };
+    const b = createBackup(all, '0.1.0', new Date('2026-09-28T10:00:00Z'));
+    expect(b).toMatchObject({ format: 'arxiv-html-notes-backup', version: 3, exportedAt: '2026-09-28T10:00:00.000Z', extensionVersion: '0.1.0' });
+    expect(b.papers.map((p) => p.id)).toEqual(['A', 'B', 'D']);
+    expect(b.groups.map((g) => g.id)).toEqual(['to-read', 'g1']);
+    // 没有分组记录的论文导出默认值（在「待读」里）
+    expect(b.papers[0]!.shelf).toEqual({ groups: ['to-read'], flagged: false, addedAt: 1, updatedAt: 0 });
+    const parsed = parseBackup(JSON.stringify(b));
+    expect(parsed.invalid).toBe(0);
+    expect(parsed.papers).toEqual(b.papers);
+    expect(parsed.groups).toEqual(b.groups);
+  });
+
+  it('兼容版本 1：没有分组信息', () => {
+    const v1 = { format: 'arxiv-html-notes-backup', version: 1, papers: [{ id: 'A', meta: null, annotations: [ann('a', 'A')] }] };
+    const p = parseBackup(JSON.stringify(v1));
+    expect(p.groups).toEqual([]);
+    expect(p.papers[0]!.shelf).toBeNull();
+  });
+
+  it.each([
+    ['不是 JSON', 'not json', '文件不是有效的 JSON'],
+    ['别的 JSON', '{"foo":1}', '这不是 arXiv 笔记的备份文件'],
+    ['更新版本', '{"format":"arxiv-html-notes-backup","version":99,"papers":[]}', '更新版本'],
+    ['缺少列表', '{"format":"arxiv-html-notes-backup","version":1}', '缺少论文列表'],
+  ])('%s → 报错', (_, text, msg) => {
+    expect(() => parseBackup(text)).toThrow(BackupError);
+    expect(() => parseBackup(text)).toThrow(msg);
+  });
+
+  it('损坏的条目跳过并计数，其余照常导入；paperId 以所在论文为准；未知颜色退回黄色', () => {
+    const text = JSON.stringify({
+      format: 'arxiv-html-notes-backup',
+      version: 1,
+      papers: [
+        {
+          id: 'A',
+          meta: null,
+          annotations: [
+            { ...ann('ok', 'WRONG'), color: 'orange' },
+            { id: 'bad-layer', layer: 'x', segments: [] },
+            { ...ann('bad-seg', 'A'), segments: [{ blockKey: 1 }] },
+            'garbage',
+          ],
+        },
+        { annotations: [ann('no-paper-id', '')] },
+      ],
+    });
+    const p = parseBackup(text);
+    expect(p.invalid).toBe(4);
+    expect(p.papers).toHaveLength(1);
+    expect(p.papers[0]!.annotations).toHaveLength(1);
+    expect(p.papers[0]!.annotations[0]).toMatchObject({ id: 'ok', paperId: 'A', color: 'yellow' });
+  });
+});
+
+describe('planImport', () => {
+  it('导入到空的插件：全部新增', () => {
+    const src = { 'paper:A': [ann('a1', 'A'), ann('a2', 'A')], 'meta:A': meta('A') };
+    const plan = planImport({}, roundtrip(src));
+    expect(plan.summary).toMatchObject({ papers: 1, newPapers: 1, added: 2, updated: 0, unchanged: 0, keptLocal: 0, newGroups: 0 });
+    expect(plan.writes).toEqual({ ...src, 'shelf:A': { groups: ['to-read'], flagged: false, addedAt: 1, updatedAt: 0 } });
+  });
+
+  it('按 id 合并：新增、更新、保留本地较新的、相同的不写', () => {
+    const local = {
+      'paper:A': [ann('same', 'A'), ann('older', 'A', { note: '旧', updatedAt: 1 }), ann('newer', 'A', { note: '本地新', updatedAt: 9 }), ann('localOnly', 'A')],
+    };
+    const backup = {
+      'paper:A': [ann('same', 'A'), ann('older', 'A', { note: '备份新', updatedAt: 5 }), ann('newer', 'A', { note: '备份旧', updatedAt: 3 }), ann('fresh', 'A')],
+    };
+    const plan = planImport(local, roundtrip(backup));
+    expect(plan.summary).toMatchObject({ papers: 1, newPapers: 0, added: 1, updated: 1, unchanged: 1, keptLocal: 1 });
+    const merged = plan.writes['paper:A'] as Annotation[];
+    const byId = Object.fromEntries(merged.map((a) => [a.id, a.note]));
+    expect(byId).toEqual({ same: '', older: '备份新', newer: '本地新', localOnly: '', fresh: '' });
+  });
+
+  it('只增不删：本地有而备份没有的论文和笔记保持不动', () => {
+    const local = { 'paper:A': [ann('a', 'A')], 'paper:B': [ann('b', 'B')] };
+    const plan = planImport(local, roundtrip({ 'paper:A': [ann('a', 'A')] }));
+    expect(plan.writes).toEqual({});
+    expect(plan.summary).toMatchObject({ unchanged: 1, added: 0 });
+  });
+
+  it('重复导入同一个文件不产生变化', () => {
+    const src = { 'paper:A': [ann('a', 'A')], 'meta:A': meta('A') };
+    const once = planImport({}, roundtrip(src));
+    const twice = planImport(once.writes, roundtrip(src));
+    expect(twice.writes).toEqual({});
+    expect(twice.summary.unchanged).toBe(1);
+  });
+
+  it('元数据：API 来源优先，打开时间取较晚者', () => {
+    const local = { 'paper:A': [ann('a', 'A')], 'meta:A': meta('A', { title: '页面标题', lastOpenedAt: 50 }) };
+    const backup = { 'paper:A': [ann('a', 'A')], 'meta:A': meta('A', { title: 'API 标题', source: 'api', lastOpenedAt: 20 }) };
+    const m = planImport(local, roundtrip(backup)).writes['meta:A'] as PaperMeta;
+    expect(m).toMatchObject({ title: 'API 标题', source: 'api', lastOpenedAt: 50 });
+
+    // 反过来：本地是 API 数据，备份是页面数据 → 保留本地标题
+    const m2 = planImport(backup, roundtrip(local)).writes['meta:A'] as PaperMeta;
+    expect(m2).toMatchObject({ title: 'API 标题', lastOpenedAt: 50 });
+  });
+});
+
+describe('planImport：分组', () => {
+  it('论文的分组取并集，标记取较新的；同名分组合并为同一个', () => {
+    const local = {
+      groups: [group('rl', 'RL'), group('mine', 'Agent', { order: 2 })],
+      'paper:A': [ann('a', 'A')],
+      'shelf:A': shelf(['mine'], { updatedAt: 5 }),
+    };
+    const backup = {
+      groups: [group('theirs', 'agent'), group('new', 'Vision')],
+      'paper:A': [ann('a', 'A')],
+      'shelf:A': shelf(['to-read', 'theirs', 'new'], { flagged: true, updatedAt: 9 }),
+    };
+    const plan = planImport(local, roundtrip(backup));
+    expect(plan.summary).toMatchObject({ newGroups: 1, shelvesChanged: 1, unchanged: 1 });
+    expect((plan.writes.groups as Group[]).map((g) => g.name)).toEqual(['待读', 'RL', 'Agent', 'Vision']);
+    expect(plan.writes['shelf:A']).toEqual({ groups: ['mine', 'to-read', 'new'], flagged: true, addedAt: 1, updatedAt: 9 });
+  });
+
+  it('本地已移出「待读」的论文：备份里没有 shelf（版本 1）时不改动', () => {
+    const local = { 'paper:A': [ann('a', 'A')], 'shelf:A': shelf([]) };
+    const v1 = { format: 'arxiv-html-notes-backup', version: 1, papers: [{ id: 'A', meta: null, annotations: [ann('a', 'A')] }] };
+    const plan = planImport(local, parseBackup(JSON.stringify(v1)));
+    expect(plan.writes).toEqual({});
+  });
+
+  it('只浏览过、没有笔记的论文也会导入；备份里残留的已删除分组 id 被丢弃', () => {
+    const backup = { 'meta:B': meta('B'), 'shelf:B': shelf(['to-read', 'gone'], { flagged: true }) };
+    const plan = planImport({}, roundtrip(backup));
+    expect(plan.summary).toMatchObject({ papers: 1, newPapers: 1, added: 0 });
+    expect(plan.writes['meta:B']).toEqual(meta('B'));
+    expect(plan.writes['shelf:B']).toEqual(shelf(['to-read'], { flagged: true }));
+    expect(planImport(plan.writes, roundtrip(backup)).writes).toEqual({});
+  });
+});
+
+it('backupFileName 使用本地日期', () => {
+  expect(backupFileName(new Date(2026, 8, 28, 23, 30))).toBe('arxiv-notes-backup-2026-09-28.json');
+});
+
+describe('planImport：恢复已删除的内容', () => {
+  it('本地删除过、备份里还有的笔记、论文和分组会恢复，修改时间改为导入时间以免同步时再被删掉', () => {
+    const backup = {
+      groups: [group('g', 'RL', { updatedAt: 5 })],
+      'paper:A': [ann('a', 'A', { updatedAt: 5 })],
+      'meta:A': meta('A', { lastOpenedAt: 5 }),
+      'shelf:A': shelf(['g'], { addedAt: 5, updatedAt: 5 }),
+      'paper:B': [ann('b', 'B', { updatedAt: 5 }), ann('b2', 'B', { updatedAt: 5 })],
+    };
+    const local = {
+      'tomb:A': { paper: 100, annotations: {} },
+      'paper:B': [ann('b2', 'B', { updatedAt: 5 })],
+      'tomb:B': { annotations: { b: 100 } },
+      'groups-deleted': { g: { at: 100 } },
+    };
+    const w = planImport(local, roundtrip(backup), 1000).writes;
+    expect((w['paper:A'] as Annotation[])[0]!.updatedAt).toBe(1000);
+    expect((w['meta:A'] as PaperMeta).lastOpenedAt).toBe(1000);
+    expect((w['shelf:A'] as Shelf).updatedAt).toBe(1000);
+    expect(Object.fromEntries((w['paper:B'] as Annotation[]).map((a) => [a.id, a.updatedAt]))).toEqual({ b: 1000, b2: 5 });
+    expect((w.groups as Group[]).find((g) => g.id === 'g')!.updatedAt).toBe(1000);
+  });
+});

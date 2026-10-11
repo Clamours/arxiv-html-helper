@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>arXiv 笔记</title>
+  </head>
+  <body>
+    <header>
+      <div class="head-row">
+        <div class="head-text">
+          <h1 id="title"></h1>
+          <div id="sub" class="sub"></div>
+        </div>
+        <div class="head-actions">
+          <button id="flag" class="icon-btn" hidden></button>
+          <button id="export" class="icon-btn" title="复制为 Markdown" aria-label="复制为 Markdown" hidden></button>
+          <button id="library" class="icon-btn" title="论文库" aria-label="论文库"></button>
+        </div>
+      </div>
+      <div id="groups" class="groups" hidden></div>
+      <div id="providers" class="chips"></div>
+    </header>
+    <main id="list"></main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

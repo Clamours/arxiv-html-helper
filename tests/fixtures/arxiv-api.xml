@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<feed xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom" xmlns="http://www.w3.org/2005/Atom">
+  <id>https://arxiv.org/api/Zcpn8CRlUsDDYC3x6v7Eh03WJws</id>
+  <title>arXiv Query: search_query=&amp;id_list=1706.03762,hep-th/9901001,9999.99999</title>
+  <opensearch:totalResults>2</opensearch:totalResults>
+  <entry>
+    <id>http://arxiv.org/abs/1706.03762v7</id>
+    <title>Attention Is All
+      You  Need</title>
+    <updated>2023-08-02T00:41:18Z</updated>
+    <published>2017-06-12T17:57:34Z</published>
+    <author>
+      <name>Ashish Vaswani</name>
+    </author>
+    <author>
+      <name>Noam Shazeer</name>
+    </author>
+    <author>
+      <name>Łukasz Kaiser</name>
+      <arxiv:affiliation>Google Brain</arxiv:affiliation>
+    </author>
+    <link href="https://arxiv.org/abs/1706.03762v7" rel="alternate" type="text/html"/>
+  </entry>
+  <entry>
+    <id>http://arxiv.org/abs/hep-th/9901001v3</id>
+    <title>String Junctions and Their Duals in Heterotic String Theory</title>
+    <published>1999-01-01T01:01:10Z</published>
+    <author>
+      <name>Yosuke Imamura</name>
+    </author>
+  </entry>
+</feed>

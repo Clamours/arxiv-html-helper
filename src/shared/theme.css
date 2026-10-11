@@ -1,0 +1,164 @@
+/* 侧边栏、论文库共用的主题变量和基础组件 */
+:root {
+  --fg: #1d1d1f;
+  --fg-2: #3a3a3c;
+  --muted: #86868b;
+  --bg: #f5f5f7;
+  --card: #fff;
+  --card-hover: #fff;
+  --note-bg: #f2f2f5;
+  --field: #fff;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-strong: rgba(0, 0, 0, 0.16);
+  --hover: rgba(0, 0, 0, 0.05);
+  --accent: #0a84ff;
+  --danger: #d70015;
+  --danger-bg: rgba(215, 0, 21, 0.08);
+  --warn: #b25000;
+  --live: #34c759;
+  --flag: #ff9500;
+  /* 划线底色的浓度 */
+  --mark-mix: 38%;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #f2f2f5;
+    --fg-2: #d1d1d6;
+    --muted: #8e8e93;
+    --bg: #1c1c1e;
+    --card: #262628;
+    --card-hover: #2c2c2e;
+    --note-bg: #1e1e20;
+    --field: #262628;
+    --line: rgba(255, 255, 255, 0.07);
+    --line-strong: rgba(255, 255, 255, 0.16);
+    --hover: rgba(255, 255, 255, 0.08);
+    --danger: #ff453a;
+    --danger-bg: rgba(255, 69, 58, 0.14);
+    --warn: #ff9f0a;
+    --live: #30d158;
+    --flag: #ff9f0a;
+    --mark-mix: 62%;
+  }
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 13px/1.5 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- 图标按钮 ---- */
+.icon-btn {
+  flex: none; width: 30px; height: 30px; padding: 0;
+  display: grid; place-items: center;
+  border: 0; border-radius: 8px; background: transparent; cursor: pointer;
+  color: var(--muted); transition: background-color 0.12s, color 0.12s;
+}
+.icon-btn svg { width: 20px; height: 20px; }
+.icon-btn:hover { background: var(--hover); color: var(--fg); }
+.icon-btn.danger:hover { background: var(--danger-bg); color: var(--danger); }
+.icon-btn.done { color: var(--live); }
+.icon-btn[hidden] { display: none; }
+
+/* ---- 划线：与页面上的高亮同色的荧光笔底色 ---- */
+.mark {
+  background: color-mix(in srgb, var(--c) var(--mark-mix), transparent);
+  border-radius: 3px; padding: 1px 2px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+/* 深色背景上整块底色会发灰发脏，改成荧光笔涂在文字下半部分 */
+@media (prefers-color-scheme: dark) {
+  .mark {
+    background: linear-gradient(transparent 52%, color-mix(in srgb, var(--c) var(--mark-mix), transparent) 52%);
+    border-radius: 0; padding: 0 1px;
+  }
+}
+
+/* ---- 笔记块 ---- */
+.note {
+  margin-top: 8px; padding: 7px 10px;
+  border-radius: 8px; background: var(--note-bg);
+  color: var(--fg-2); white-space: pre-wrap; word-break: break-word;
+}
+
+/* ---- 小标签：译文、状态 ---- */
+.tag { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.tag + .tag::before { content: "·"; margin-right: 6px; }
+.tag.warn { color: var(--warn); }
+
+/* ---- 空状态 ---- */
+.empty { text-align: center; padding: 56px 24px; color: var(--muted); }
+.empty svg { width: 44px; height: 44px; color: var(--muted); opacity: 0.8; }
+.empty h2 { margin: 12px 0 4px; font-size: 14px; font-weight: 600; color: var(--fg-2); }
+.empty p { margin: 0; font-size: 12.5px; line-height: 1.6; }
+
+/* ---- 标记（旗帜） ---- */
+.icon-btn.flagged { color: var(--flag); }
+.icon-btn.flagged:hover { color: var(--flag); }
+.icon-btn.flagged svg .fill, .flag-icon svg .fill { fill: currentColor; fill-opacity: 0.85; }
+
+/* ---- 分组 chip：色点 + 名称 ---- */
+.gchip {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  height: 22px; padding: 0 8px 0 7px; border-radius: 999px; border: 0;
+  font-size: 12px; line-height: 1; color: var(--fg-2); white-space: nowrap;
+  background: color-mix(in srgb, var(--c) 14%, transparent);
+  overflow: hidden; text-overflow: ellipsis;
+}
+button.gchip { cursor: pointer; transition: background-color 0.12s; }
+button.gchip:hover { background: color-mix(in srgb, var(--c) 24%, transparent); }
+.dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
+/* "加入分组"按钮，和 chip 同高 */
+.gchip.add {
+  --c: var(--muted);
+  background: transparent; color: var(--muted);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.gchip.add svg { width: 14px; height: 14px; margin-left: -1px; }
+.gchip.add:hover, .gchip.add.open { background: var(--hover); color: var(--fg); }
+
+/* ---- 弹出层 ---- */
+.popover {
+  position: fixed; z-index: 20;
+  min-width: 200px; max-width: min(280px, calc(100vw - 16px));
+  padding: 6px; border-radius: 12px;
+  border: 1px solid var(--line-strong); background: var(--card);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
+  font-size: 13px;
+}
+.menu-item, .picker-item {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  min-height: 30px; padding: 0 8px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--fg); text-align: left; cursor: pointer;
+}
+.menu-item:hover, .picker-item:hover, .menu-item:focus-visible, .picker-item:focus-visible {
+  background: var(--hover); outline: none;
+}
+.menu-item svg, .picker-item svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.menu-item.danger { color: var(--danger); }
+.menu-item.danger svg { color: currentColor; }
+.menu-item.danger:hover, .menu-item.confirm { background: var(--danger-bg); }
+.menu-sep { height: 1px; margin: 5px 4px; background: var(--line); }
+
+.picker-input {
+  width: 100%; height: 32px; padding: 0 9px; margin-bottom: 4px;
+  font: inherit; color: var(--fg);
+  border: 1px solid var(--line-strong); border-radius: 8px; background: var(--field);
+}
+.picker-input:focus { outline: none; border-color: var(--accent); }
+.picker-input::placeholder { color: var(--muted); }
+.picker-list { max-height: 260px; overflow-y: auto; }
+.picker-item .check { flex: none; width: 16px; height: 16px; display: grid; place-items: center; visibility: hidden; }
+.picker-item .check svg { width: 16px; height: 16px; color: var(--accent); }
+.picker-item.on .check { visibility: visible; }
+.picker-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-item.create { color: var(--accent); }
+.picker-item.create svg { color: currentColor; }
+.picker-empty { padding: 8px; color: var(--muted); }

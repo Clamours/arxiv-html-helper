@@ -1,0 +1,30 @@
+{
+  "name": "arxiv-html-helper",
+  "description": "为 arXiv HTML 页面（含沉浸式翻译 / 陪读蛙译文）提供划线高亮与笔记",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "STORE_BUILD=1 wxt zip",
+    "compile": "tsc --noEmit",
+    "test": "vitest run",
+    "mineru": "tsx scripts/mineru-to-html.ts",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^30.0.0",
+    "jsdom": "^30.1.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2",
+    "wxt": "^0.21.4"
+  },
+  "dependencies": {
+    "approx-string-match": "^2.0.0",
+    "fflate": "^0.8.3",
+    "pdfjs-dist": "^5.7.284",
+    "temml": "^0.13.5"
+  }
+}

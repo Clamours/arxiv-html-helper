@@ -1,0 +1,33 @@
+import type { PaperRef } from './paper';
+import type { AnchorStatus, Annotation, HighlightColor } from './types';
+
+/** 侧边栏 → 内容脚本 */
+export type Request =
+  | { type: 'ahh:get-state' }
+  | { type: 'ahh:scroll-to'; id: string }
+  | { type: 'ahh:update'; id: string; patch: { color?: HighlightColor; note?: string } }
+  | { type: 'ahh:delete'; id: string };
+
+/** 内容脚本 → 侧边栏（广播） */
+export interface StateChanged {
+  type: 'ahh:state-changed';
+}
+
+export interface PageState {
+  paper: PaperRef;
+  /** 从页面提取的标题；可能已被翻译插件改写，侧边栏优先用存储里的元数据 */
+  pageTitle: string;
+  /** 已按文档顺序排好，定位不到的排在最后 */
+  items: { annotation: Annotation; status: AnchorStatus }[];
+  /** 当前页面检测到的翻译插件及译文段落数，用于诊断适配器是否生效 */
+  providers: { id: string; name: string; count: number }[];
+}
+
+/**
+ * 论文库页、内容脚本 → background：立即同步，回复同步后的状态（SyncStatus）。
+ * quiet：打开页面时顺便拉取一次，最近半分钟内同步过就跳过；没有开启同步时什么也不做
+ */
+export interface SyncNowRequest {
+  type: 'ahh:sync-now';
+  quiet?: boolean;
+}
