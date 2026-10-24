@@ -1,16 +1,17 @@
 <!doctype html>
 <!--
   导入论文的阅读页：空壳页面，扩展的内容脚本把本机 IndexedDB 里的论文页面填进来（见 src/import/reader.ts）。
-  论文以 https 网址打开，ChatGPT 侧边栏等只读 http/https 页面的扩展才能读到正文
+  论文以 https 网址打开，ChatGPT 侧边栏等只读 http/https 页面的扩展才能读到正文。
+  填入时只删掉带 data-ahh-shell 的元素，其他扩展（翻译插件等）已经插入的样式和界面保留
 -->
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
-  <title>arXiv HTML Helper</title>
+  <title data-ahh-shell>arXiv HTML Helper</title>
   <link rel="icon" href="icon-32.png" sizes="32x32">
-  <style>
+  <style data-ahh-shell>
     :root { color-scheme: light dark; --bg: #faf8f5; --text: #1d1d1f; --muted: #6e6e73; --accent: #b31b1b; }
     @media (prefers-color-scheme: dark) { :root { --bg: #161514; --text: #f2f0ed; --muted: #a19d97; --accent: #e0504a; } }
     body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif; }
@@ -23,7 +24,7 @@
   </style>
 </head>
 <body>
-  <main>
+  <main data-ahh-shell>
     <p>这个页面用来阅读导入 <a href="./">arXiv HTML Helper</a> 的 PDF 论文。论文保存在你的浏览器里，由扩展填入本页，不会上传。看到这段话，说明这个浏览器没有安装扩展，或者扩展还没有获得访问本页的权限。</p>
     <p lang="en">This page shows PDF papers imported into <a href="./">arXiv HTML Helper</a>. The paper is stored in your browser and filled in by the extension; it is never uploaded. If you can read this, the extension is not installed in this browser or has not been allowed to access this page.</p>
   </main>
