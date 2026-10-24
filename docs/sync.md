@@ -84,5 +84,5 @@ OAuth 客户端绑定扩展 ID，所以要先固定扩展 ID（见下一节）�
 
 - 改变扩展 ID 相当于换了一个新扩展，本地数据不会带过去。启用 `EXTENSION_KEY` 之前，先用旧版导出备份，在新 ID 的扩展里导入。开启云同步之后，换 ID、换电脑都只要重新连上同一个存储就行
 - 商店不接受 manifest 里带 `key` 的包。`npm run zip` 会设置 `STORE_BUILD=1`，自动去掉 `key`；`GOOGLE_CLIENT_ID` 照常写入
-- 提交审核时需要说明权限用途：`alarms` 用于定时同步；`identity` 用于 Google Drive 授权；`optional_host_permissions` 用于访问用户自己填写的 WebDAV 服务器和 Google Drive 接口，开启同步时才向用户申请，以及导入 PDF 时访问 MinerU 的接口、上传地址和结果 CDN；`downloads`（可选权限）用于把导入 PDF 生成的论文页面保存为本地文件；内容脚本匹配 `file:///*` 是为了在这些本地论文页面上划线（只在带论文 id 的页面上启用），见 [import.md](import.md)
+- 提交审核时需要说明权限用途：`alarms` 用于定时同步；`identity` 用于 Google Drive 授权；`optional_host_permissions` 用于访问用户自己填写的 WebDAV 服务器和 Google Drive 接口，开启同步时才向用户申请，以及导入 PDF 时访问 MinerU 的接口、上传地址、结果 CDN 和阅读页（`clamours.github.io`）；`scripting` 用于在阅读页上注册内容脚本；内容脚本匹配 `file:///*` 是为了在早期版本写出的本地论文页面上划线（只在带论文 id 的页面上启用），见 [import.md](import.md)
 - 隐私说明：数据只存在本机和用户自己选择的 WebDAV 或 Google Drive 里，扩展没有自己的服务器

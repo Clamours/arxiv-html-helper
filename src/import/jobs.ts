@@ -9,7 +9,6 @@ import { browser } from 'wxt/browser';
 import { extractMeta, importedPaperId, sha256Hex, type PaperMeta } from '@/core/paper';
 import { recordPageMeta } from '@/core/storage';
 import { deleteDoc, deletePdf, loadDoc, loadPdf, saveDoc, savePdf } from './docs';
-import { removeLocalFile } from './local-file';
 import { ImportError, MinerUClient, originOf, type ImportErrorKind, type ParseResult } from './mineru-api';
 
 export const JOB_PREFIX = 'import:job:';
@@ -214,9 +213,10 @@ function process(paperId: string, runner: Runner): Promise<void> {
   });
 }
 
-/** 从论文库移除导入的论文时，一并删除本机的页面和本地文件 */
+/**
+ * 从论文库移除导入的论文时，一并删除本机的页面。
+ * 早期版本写到"下载/arxiv-html-helper/"的本地文件不再有 downloads 权限去删，需要用户自己删除
+ */
 export async function removeImportedPage(paperId: string): Promise<void> {
-  const doc = await loadDoc(paperId);
-  if (doc) await removeLocalFile(doc);
   await deleteDoc(paperId);
 }

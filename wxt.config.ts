@@ -61,14 +61,13 @@ export default defineConfig({
     return {
       name: OFFICIAL ? 'arXiv HTML Helper' : 'arXiv HTML Helper (Dev)',
       description: '在 arXiv HTML 页面上划线、高亮、做笔记，支持沉浸式翻译 / 陪读蛙的译文。',
-      permissions: ['storage', 'unlimitedStorage', 'sidePanel', 'alarms', ...(clientId ? ['identity'] : [])],
+      // scripting：有阅读页的访问权限时，在阅读页上注册内容脚本（见 src/import/reader.ts）
+      permissions: ['storage', 'unlimitedStorage', 'sidePanel', 'alarms', 'scripting', ...(clientId ? ['identity'] : [])],
       // 论文库从 arXiv API 获取标题和作者
       host_permissions: ['https://export.arxiv.org/*'],
       // 云同步：开启时只申请所填 WebDAV 服务器（或 Google Drive 接口）的访问权限；
-      // 导入 PDF：开始导入时申请 MinerU 接口、上传地址和结果 CDN 的访问权限
+      // 导入 PDF：开始导入时申请 MinerU 接口、上传地址、结果 CDN 和阅读页（clamours.github.io）的访问权限
       optional_host_permissions: ['https://*/*', 'http://*/*'],
-      // 导入 PDF：把生成的论文页面保存为本地文件（导入时才申请）
-      optional_permissions: ['downloads'],
       ...(clientId ? { oauth2: { client_id: clientId, scopes: ['https://www.googleapis.com/auth/drive.appdata'] } } : {}),
       ...(key && !FOR_STORE ? { key } : {}),
       action: { default_title: '打开笔记侧边栏' },

@@ -13,7 +13,6 @@ import {
 } from '../src/core/paper';
 import { fromStorage, mergeSync } from '../src/core/sync';
 import { buildPageFromZip } from '../src/import/bundle';
-import { fileUrl, pageFileName } from '../src/import/local-file';
 import { ImportError, MINERU_API, MinerUClient } from '../src/import/mineru-api';
 
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
@@ -145,21 +144,6 @@ describe('导入论文的 id 与页面识别', () => {
     expect(parseImportedPage(document, 'https://evil.example/a.html')).toBeNull();
     document.head.innerHTML = '<meta name="ahh-paper-id" content="../../x">';
     expect(parseImportedPage(document, 'file:///tmp/a.html')).toBeNull();
-  });
-});
-
-describe('本地文件', () => {
-  it('路径 → file:// URL', () => {
-    expect(fileUrl('/Users/me/Downloads/arxiv-html-helper/注意力 稀释 [0123abcd].html')).toBe(
-      'file:///Users/me/Downloads/arxiv-html-helper/%E6%B3%A8%E6%84%8F%E5%8A%9B%20%E7%A8%80%E9%87%8A%20%5B0123abcd%5D.html',
-    );
-    expect(fileUrl('C:\\Users\\me\\Downloads\\a b.html')).toBe('file:///C:/Users/me/Downloads/a%20b.html');
-    expect(fileUrl('\\\\nas\\share\\a.html')).toBe('file://nas/share/a.html');
-  });
-
-  it('文件名去掉不允许的字符，带上 id 的一段', () => {
-    expect(pageFileName('A/B: "C" $x^2$?', 'pdf-0123456789abcdef0123')).toBe('A B C x^2 [01234567].html');
-    expect(pageFileName('...', 'pdf-0123456789abcdef0123')).toBe('paper [01234567].html');
   });
 });
 

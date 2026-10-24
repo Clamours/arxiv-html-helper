@@ -1,6 +1,6 @@
 /**
  * 导入论文的页面存在 IndexedDB（chrome.storage.local 适合放小的键值，一篇页面有 1 MB 左右）。
- * 这里的 HTML 是本机的权威副本：下载文件夹里的 .html 被删掉、移走后，从这里重新写出。
+ * 这是本机唯一的副本：打开论文时，阅读页的内容脚本从这里取 HTML 填进页面（见 reader.ts）。
  *
  * 导入进行中时，PDF 也暂存在这里（上传、从 PDF 补图要用），导入完成或任务移除后删除。
  */
@@ -9,8 +9,6 @@ export interface StoredDoc {
   id: string;
   html: string;
   sha256: string;
-  /** 本机写出的 .html 文件（chrome.downloads 的记录）；还没写出过时没有 */
-  localFile?: { downloadId: number; path: string };
 }
 
 const DB_NAME = 'ahh-docs';

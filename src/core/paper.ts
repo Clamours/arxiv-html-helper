@@ -63,9 +63,32 @@ export async function sha256Hex(data: BufferSource): Promise<string> {
 /** 导入论文的页面在 <head> 里用这个 meta 标明论文 id */
 export const IMPORTED_META = 'ahh-paper-id';
 
-/** 本地打开的导入论文页面（file://）；其他本地文件返回 null */
+/**
+ * 导入论文的阅读页：项目主页上的空壳页面（site/reader.html），内容脚本把本机的论文页面填进去。
+ * 以 https 网址打开，ChatGPT 侧边栏等只读 http/https 页面的扩展才能读到正文
+ */
+export const READER_PAGE = 'https://clamours.github.io/arxiv-html-helper/reader.html';
+
+export const readerUrl = (id: string) => `${READER_PAGE}?id=${id}`;
+
+/** 阅读页网址里的论文 id；不是阅读页时返回 null */
+export function readerPaperId(url: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return null;
+  }
+  const id = u.searchParams.get('id') ?? '';
+  return u.origin + u.pathname === READER_PAGE && isImportedId(id) ? id : null;
+}
+
+/**
+ * 导入论文的页面：填好的阅读页，或早期版本写到"下载"文件夹、以 file:// 打开的本地文件；
+ * 其他页面（包括其他本地文件）返回 null
+ */
 export function parseImportedPage(doc: Document, url: string): PaperRef | null {
-  if (!url.startsWith('file:')) return null;
+  if (!url.startsWith('file:') && !readerPaperId(url)) return null;
   const id = doc.querySelector(`meta[name="${IMPORTED_META}"]`)?.getAttribute('content') ?? '';
   return isImportedId(id) ? { id, version: '' } : null;
 }

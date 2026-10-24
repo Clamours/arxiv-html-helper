@@ -180,11 +180,11 @@ function paperRow({ entry, matched }: SearchResult, terms: string[]): HTMLElemen
   const link = el('a', '') as HTMLAnchorElement;
   const imported = isImportedId(entry.id);
   if (imported) {
-    // 导入的论文：页面保存在本机，以本地文件打开
+    // 导入的论文：页面保存在本机，在阅读页里打开
     link.href = '#';
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      void importUi.open(entry.id, titleOf(entry));
+      void importUi.open(entry.id);
     });
   } else {
     link.href = paperUrl(entry.id, entry.version);

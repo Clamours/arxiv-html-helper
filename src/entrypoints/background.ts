@@ -1,3 +1,4 @@
+import { initReaderService } from '@/import/reader';
 import { initSyncService, markTranslationsDirty } from '@/sync/service';
 import { initTranslationService } from '@/translations/service';
 
@@ -6,4 +7,5 @@ export default defineBackground(() => {
   void browser.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   initSyncService();
   initTranslationService(markTranslationsDirty);
+  initReaderService();
 });

@@ -19,6 +19,12 @@ export type TranslationRequest =
   | { type: 'ahh:tr-put'; paperId: string; blocks: SavedBlock[] }
   | { type: 'ahh:tr-clear'; paperId: string };
 
+/** 阅读页的内容脚本 → background：取导入论文的页面 HTML，回复 string | null */
+export interface ReaderDocRequest {
+  type: 'ahh:reader-doc';
+  paperId: string;
+}
+
 /** 内容脚本 → 侧边栏（广播） */
 export interface StateChanged {
   type: 'ahh:state-changed';

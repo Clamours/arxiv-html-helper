@@ -50,7 +50,7 @@ npm test
 - 侧边栏右上角的"论文库"会打开一个新标签页，列出所有浏览过的论文（标题、作者、年份从 arXiv API 自动获取）：可按最近笔记 / 最近打开 / 最近加入 / 笔记数 / 标题排序，搜索标题、作者、id、划线和笔记内容，复制 Markdown 或从论文库移除
 - **分组**：一篇论文可以属于多个分组（相当于标签）。浏览过的论文自动加入论文库，默认不属于任何分组。左侧栏按 全部 / 已标记 / 未分组 / 各分组 筛选；分组可以新建、重命名、改颜色、删除，或把整个分组的笔记复制为 Markdown
 - 论文库右上角可以**导出备份 / 导入备份**：导出为一个 JSON 文件（全部论文、划线、笔记、分组和标记，含译文层）；导入时先预览，笔记按 id 合并、保留修改时间较新的一份，论文的分组取两边的并集，只增不删，可用于换电脑迁移或定期备份
-- **导入 PDF**：论文库右上角的"导入 PDF"用 MinerU 解析 PDF，生成和 arXiv HTML 结构相同的论文页面（以本地文件打开，翻译插件可用），同样可以划线、写笔记，左侧有和 arXiv 一样的目录。需要 MinerU Token，并在扩展详情页打开"允许访问文件网址"，详见 [docs/import.md](docs/import.md)
+- **导入 PDF**：论文库右上角的"导入 PDF"用 MinerU 解析 PDF，生成和 arXiv HTML 结构相同的论文页面（在项目主页的阅读页里打开，翻译插件和 ChatGPT 侧边栏都能读到正文；ChatGPT 要先在页面上选中一点文字再提问），同样可以划线、写笔记，左侧有和 arXiv 一样的目录。需要 MinerU Token，详见 [docs/import.md](docs/import.md)
 - **云同步**：论文库右上角的"云同步"可以通过 WebDAV（坚果云等）或 Google Drive 在多台电脑之间自动同步笔记、论文库、分组和译文存档，删除也会同步。设置方法和合并规则见 [docs/sync.md](docs/sync.md)
 
 ## 设计要点
@@ -84,7 +84,7 @@ src/
   sync/        云同步：设置、WebDAV / Google Drive、同步流程（含译文存档）、background 里的调度
   translations/ 译文存档的本机存储（扩展的 IndexedDB）和 background 里的读写服务
   adapters/    翻译插件选择器
-  import/      导入 PDF（见 docs/import.md）：MinerU 解析 → arXiv（LaTeXML）风格的 HTML → 本地文件
+  import/      导入 PDF（见 docs/import.md）：MinerU 解析 → arXiv（LaTeXML）风格的 HTML → 阅读页
     mineru-api.ts MinerU 精准解析 API：上传、轮询、下载结果
     jobs.ts      导入任务的状态和流程
     bundle.ts    结果 zip → 单文件 HTML（图片内嵌）
@@ -93,14 +93,14 @@ src/
     latexml.ts   渲染成 LaTeXML 结构（id、类名与 arXiv 一致），公式由 Temml 转成带 alttext 的 MathML
     page.ts      完整页面：样式、<html lang>、论文 id
     docs.ts      IndexedDB 里的论文页面
-    local-file.ts 写到"下载"文件夹并以 file:// 打开
-  content/     内容脚本：高亮渲染、浮动 UI、MutationObserver、译文存档的采集与显示、导入论文的目录
+    reader.ts    在阅读页（site/reader.html）里打开：替阅读页取页面 HTML、注册阅读页的内容脚本
+  content/     内容脚本：高亮渲染、浮动 UI、MutationObserver、译文存档的采集与显示、导入论文的目录、填入阅读页
   shared/      侧边栏和论文库共用的主题、图标、弹出层、分组菜单
   entrypoints/ WXT 入口：content、background、sidepanel、library（论文库页，含导入 PDF 的界面）
 scripts/capture-dom.js   在真实页面上抓取翻译插件的 DOM，用于核对选择器
 scripts/mineru-to-html.ts  把 MinerU 导出的 Markdown 转成 HTML 文件（npm run mineru）
 scripts/render-icons.sh    把 src/assets/icon.svg 导出为扩展图标（public/icon/）、开发版图标（src/assets/icon-dev/）和主页图标
-site/                      项目主页和隐私政策，推送后由 GitHub Actions 部署到 GitHub Pages
+site/                      项目主页、隐私政策和导入论文的阅读页，推送后由 GitHub Actions 部署到 GitHub Pages
 ```
 
 ## 用真实论文测试

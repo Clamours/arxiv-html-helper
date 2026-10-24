@@ -44,7 +44,7 @@
 
 ■ 导入 PDF
 · 没有 HTML 版本的论文，可以用 MinerU 把 PDF 解析成和 arXiv HTML 相同结构的页面，同样可以划线、写笔记、用翻译插件翻译
-· 需要自备 MinerU Token，并在扩展详情页打开"允许访问文件网址"。PDF 会上传到 MinerU 的服务器解析
+· 需要自备 MinerU Token。PDF 会上传到 MinerU 的服务器解析；生成的论文页面保存在本机，在项目主页的阅读页里打开，翻译插件和 ChatGPT 等侧边栏 AI 助手都能读取正文
 
 ■ 隐私
 扩展没有自己的服务器，不收集、不统计任何数据。笔记默认只保存在本机；开启云同步后只写到你自己的 WebDAV 服务器。详见隐私政策。
@@ -130,10 +130,10 @@ The main UI: clicking the toolbar icon opens a side panel listing all highlights
 Schedules periodic background sync when the user has turned on cloud sync (to their own WebDAV server or Google Drive), so notes stay in sync across the user's computers.
 ```
 
-**downloads**（可选权限）
+**scripting**
 
 ```text
-Optional, requested only when the user uses "Import PDF". Translation extensions cannot run on chrome-extension:// pages but do run on local files, so the generated paper page is saved to the Downloads folder (Downloads/arxiv-html-helper/) via chrome.downloads and opened from there. Files are removed again when the user removes the paper from the library.
+Used only for the optional "Import PDF" feature. Imported papers are opened on a static page of the extension's own website (https://clamours.github.io/arxiv-html-helper/reader.html), and the extension fills in the paper from IndexedDB on the user's device, so translation extensions and AI side panels can read it. Access to that site is an optional host permission requested when the user imports or opens a paper; once it is granted, chrome.scripting.registerContentScripts registers the extension's own packaged content script for that page. No remote code is injected.
 ```
 
 **identity**（只在启用 Google Drive 同步时）
@@ -147,8 +147,8 @@ Used only for optional Google Drive sync: chrome.identity.getAuthToken obtains a
 ```text
 - https://export.arxiv.org/*: the paper library fetches titles, authors and years of papers the user has opened from the official arXiv API (only arXiv ids are sent).
 - Content scripts on arxiv.org/html/*, ar5iv.org/html/* and ar5iv.labs.arxiv.org/html/*: render highlights and the note toolbar on arXiv HTML paper pages, which is the extension's single purpose.
-- Content script on file:///*: papers imported from PDF are opened as local HTML files. The script only activates on pages that contain the extension's <meta name="ahh-paper-id"> marker and does nothing on any other local file. This also requires the user to turn on "Allow access to file URLs" themselves.
-- Optional https://*/* and http://*/*: NOT granted at install. They are requested at runtime via chrome.permissions.request, limited to the specific origins needed, only when the user turns on a feature that needs it: the WebDAV server URL the user typed in (any host, possibly self-hosted or on a LAN over http), the Google Drive API, or the MinerU API, upload and result CDN hosts for "Import PDF". The exact hosts cannot be known in advance, which is why they are declared as optional wildcards.
+- Content script on file:///*: earlier versions opened papers imported from PDF as local HTML files, and those files keep working. The script only activates on pages that contain the extension's <meta name="ahh-paper-id"> marker and does nothing on any other local file. This also requires the user to turn on "Allow access to file URLs" themselves.
+- Optional https://*/* and http://*/*: NOT granted at install. They are requested at runtime via chrome.permissions.request, limited to the specific origins needed, only when the user turns on a feature that needs it: the WebDAV server URL the user typed in (any host, possibly self-hosted or on a LAN over http), the Google Drive API, or the MinerU API, upload and result CDN hosts and the extension's own reader page on clamours.github.io for "Import PDF". The exact hosts cannot be known in advance, which is why they are declared as optional wildcards.
 ```
 
 ### 远程代码（Remote code）

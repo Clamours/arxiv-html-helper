@@ -1,5 +1,4 @@
 import { browser } from 'wxt/browser';
-import { loadMeta } from '@/core/storage';
 import { FILE_PLUS_ICON } from '@/shared/icons';
 import {
   loadJobs,
@@ -14,12 +13,12 @@ import {
   type ImportJob,
   type Runner,
 } from '@/import/jobs';
-import { hasFileAccess, openExtensionSettings, OpenError, openImportedPaper } from '@/import/local-file';
 import { MINERU_ORIGINS } from '@/import/mineru-api';
+import { OpenError, openImportedPaper, READER_ORIGINS } from '@/import/reader';
 import { toast } from './toast';
 
 /**
- * 论文库页的"导入 PDF"：PDF 交给 MinerU 解析，生成 arXiv 风格的论文页面，保存在本机并以 file:// 打开。
+ * 论文库页的"导入 PDF"：PDF 交给 MinerU 解析，生成 arXiv 风格的论文页面，保存在本机，在阅读页里打开。
  * 流程见 src/import/jobs.ts。
  */
 
@@ -27,7 +26,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 export interface ImportUi {
   /** 打开导入的论文（在点击事件里调用：可能需要申请权限） */
-  open(paperId: string, title: string): Promise<void>;
+  open(paperId: string): Promise<void>;
   /** 从论文库移除时删除本机的页面 */
   remove(paperId: string): Promise<void>;
 }
@@ -42,7 +41,7 @@ export function initImportUi(): ImportUi {
   const runner: Runner = {
     onDone(paperId, title, note) {
       toast(`已导入「${title}」${note ? `（${note}）` : ''}`);
-      void openPaper(paperId, title, false);
+      void openPaper(paperId, false);
     },
   };
 
@@ -84,12 +83,6 @@ export function initImportUi(): ImportUi {
     form.append(tokenField, tokenHint, fileField);
 
     const privacy = el('p', 'hint', 'PDF 会上传到 MinerU 的服务器解析，未公开的稿件请注意。同一个 PDF 只解析一次：再次导入时直接打开已生成的页面。');
-    const access = el('div', 'notice');
-    access.hidden = await hasFileAccess();
-    access.append(
-      el('p', '', '论文页面以本地文件打开，需要先在扩展详情页打开"允许访问文件网址"。'),
-      button('打开扩展详情页', 'btn', openExtensionSettings),
-    );
     const errorLine = el('p', 'error', error ?? '');
     errorLine.hidden = !error;
 
@@ -97,7 +90,7 @@ export function initImportUi(): ImportUi {
     const cancel = button('取消', 'btn plain', () => dialog.close());
     const start = button('开始导入', 'btn primary', () => void onStart());
     actions.append(cancel, start);
-    box.append(form, privacy, access, errorLine, actions);
+    box.append(form, privacy, errorLine, actions);
     dialog.replaceChildren(box);
     dialog.showModal();
 
@@ -120,11 +113,11 @@ export function initImportUi(): ImportUi {
       // 必须在点击后立即申请权限，中间不能有其他 await
       let granted = false;
       try {
-        granted = await browser.permissions.request({ permissions: ['downloads'], origins: MINERU_ORIGINS });
+        granted = await browser.permissions.request({ origins: [...MINERU_ORIGINS, ...READER_ORIGINS] });
       } catch (e) {
         return setError(permissionError(e));
       }
-      if (!granted) return setError('需要允许访问 MinerU 的服务器、管理下载内容，才能导入');
+      if (!granted) return setError('需要允许访问 MinerU 的服务器和阅读页所在的 clamours.github.io，才能导入');
       start.disabled = cancel.disabled = true;
       await saveToken(token.value);
       const results = await Promise.all(
@@ -141,7 +134,7 @@ export function initImportUi(): ImportUi {
       if (started) toast(started > 1 ? `已开始导入 ${started} 个 PDF` : '已开始导入，解析通常需要一到几分钟');
       if (existing.length) {
         toast(existing.length > 1 ? `${existing.length} 个 PDF 之前已经导入过` : '这个 PDF 之前已经导入过，直接打开');
-        if (existing.length === 1) void openPaper(existing[0]!.paperId, '', false);
+        if (existing.length === 1) void openPaper(existing[0]!.paperId, false);
       }
     }
   }
@@ -185,31 +178,32 @@ export function initImportUi(): ImportUi {
     return card;
   }
 
-  async function openPaper(paperId: string, title: string, fromClick: boolean): Promise<void> {
+  async function openPaper(paperId: string, fromClick: boolean): Promise<void> {
     try {
-      // 点击时顺便申请下载权限（已有权限时不会弹出提示）；必须在点击后立即调用
-      if (fromClick) await browser.permissions.request({ permissions: ['downloads'] });
-      await openImportedPaper(paperId, title || (await loadMeta(paperId))?.title || '');
+      // 点击时顺便申请阅读页的访问权限（已有权限时不会弹出提示）；必须在点击后立即调用
+      if (fromClick) await browser.permissions.request({ origins: READER_ORIGINS });
+      await openImportedPaper(paperId);
     } catch (e) {
-      if (e instanceof OpenError && e.kind === 'no-file-access') return showAccessDialog();
+      // 导入完成后自动打开时不能申请权限，改成让用户点一下
+      if (e instanceof OpenError && e.kind === 'no-permission') return showAccessDialog(paperId);
       toast(permissionError(e));
     }
   }
 
-  function showAccessDialog(): void {
+  function showAccessDialog(paperId: string): void {
     const box = el('div', 'dlg');
     box.tabIndex = -1;
     box.autofocus = true;
     box.append(
-      el('h2', '', '需要允许访问文件网址'),
-      el('p', 'hint', '论文页面保存在"下载/arxiv-html-helper/"文件夹里，以本地文件打开（这样翻译插件才能工作）。请在扩展详情页打开"允许访问文件网址"，然后回到论文库再点一次论文标题。'),
+      el('h2', '', '需要允许访问阅读页'),
+      el('p', 'hint', '导入的论文在 clamours.github.io 上的阅读页里打开（这样翻译插件和 ChatGPT 侧边栏才能读到正文）。论文内容由扩展从本机填进页面，不会上传。'),
     );
     const actions = el('div', 'dlg-actions');
     actions.append(
       button('关闭', 'btn plain', () => dialog.close()),
-      button('打开扩展详情页', 'btn primary', () => {
-        openExtensionSettings();
+      button('允许并打开', 'btn primary', () => {
         dialog.close();
+        void openPaper(paperId, true);
       }),
     );
     box.append(actions);
@@ -218,7 +212,7 @@ export function initImportUi(): ImportUi {
   }
 
   return {
-    open: (paperId, title) => openPaper(paperId, title, true),
+    open: (paperId) => openPaper(paperId, true),
     remove: removeImportedPage,
   };
 }

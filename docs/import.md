@@ -5,11 +5,12 @@
 ## 使用
 
 1. 在 [mineru.net](https://mineru.net/apiManage) 的 API 管理页面创建一个 Token（有效期 90 天，过期后换一个新的）
-2. 在扩展详情页（`chrome://extensions` → 本扩展 → 详情）打开 **"允许访问文件网址"**
-3. 论文库右上角点"导入 PDF"，填 Token，选择 PDF（可多选），点"开始导入"。第一次导入时 Chrome 会询问是否允许访问 MinerU 的服务器、管理下载内容，需要允许
-4. 论文库顶部显示导入进度。解析通常要一到几分钟；完成后论文自动加入论文库，并在新标签页打开
+2. 论文库右上角点"导入 PDF"，填 Token，选择 PDF（可多选），点"开始导入"。第一次导入时 Chrome 会询问是否允许访问 MinerU 的服务器和 `clamours.github.io`（阅读页，见下文），需要允许
+3. 论文库顶部显示导入进度。解析通常要一到几分钟；完成后论文自动加入论文库，并在新标签页打开
 
 之后在论文库点论文标题即可打开。
+
+**用 ChatGPT 侧边栏读论文时，先在页面上随便选中一点文字再提问。** ChatGPT 扩展只在页面上有选区时才读取标签页里的正文（选区和整页正文一起读）；没有选区时它只拿到网址，联网打开的是没有论文内容的空壳页面，会说读不到正文。选中一段再问（划线提问）也是同样的道理。
 
 - **PDF 会上传到 MinerU 的服务器**，未公开的稿件请注意。Token 只保存在这台电脑的浏览器里，不会同步，也不进备份
 - MinerU 的限制：单个文件不超过 200 MB、200 页；每个账号每天 1000 页高优先级额度，超出的部分排队更久
@@ -69,14 +70,17 @@ MinerU 输出的引用只是普通文字。生成页面时把正文、图注、�
 
 目录由内容脚本在打开页面时从节结构生成（`src/content/toc.ts`），不写进页面文件，所以之前导入的论文也有目录，页面文件本身不变。目录放在 `<article>` 之外的 Shadow DOM 里，标记了 `notranslate`：不影响划线定位，也不会被翻译插件翻译（显示原文标题）。只在导入的论文上显示，arXiv 页面用它自带的目录。
 
-## 页面保存在哪里
+## 页面保存在哪里、怎么打开
 
-翻译插件不能在其他扩展的页面（`chrome-extension://`）里工作，但可以在本地文件（`file://`）上工作，所以论文页面以本地文件的形式打开：
+生成的 HTML 是单个文件，图片内嵌，只存在扩展的 IndexedDB 里。打开时用项目主页上的**阅读页**（`site/reader.html`）：
 
-- 生成的 HTML 是单个文件，图片内嵌，不依赖网络。权威副本存在扩展的 IndexedDB 里
-- 打开时写到 **"下载/arxiv-html-helper/"** 文件夹（`chrome.downloads`），再以 `file://` 打开。这个文件被删除或移走后，下次打开会从 IndexedDB 重新写出
-- 从论文库移除这篇论文时，IndexedDB 里的页面和下载文件夹里的文件一起删除
-- 内容脚本会注入所有 `file://` 页面，但只在 `<head>` 里有 `<meta name="ahh-paper-id" content="pdf-…">` 的页面上启用
+- 论文库打开 `https://clamours.github.io/arxiv-html-helper/reader.html?id=<论文 id>`。这是一个空壳页面，内容脚本向 background 要来 IndexedDB 里的论文 HTML，填进页面（`src/content/reader.ts`）。论文内容不经过网络，GitHub 只收到对空壳页面的请求（网址里带着论文 id）；打开论文需要联网
+- 填入时只删掉空壳自己的元素（带 `data-ahh-shell`），`<html>`、`<head>`、`<body>` 本身和其他扩展已经插入的样式、界面都保留，翻译插件看到的是一次普通的页面更新
+- 为什么是 https 页面：翻译插件不能在其他扩展的页面（`chrome-extension://`）里工作；本地文件（`file://`）上翻译插件可以工作，但 ChatGPT 侧边栏这类扩展只读 http/https 页面，在 `file://` 上读不到正文、不能划线提问（它读取标签页正文的条件见上文"使用"）
+- 阅读页的访问权限（`https://clamours.github.io/*`）是可选权限，导入或打开论文时申请。阅读页的内容脚本不写在 manifest 里，有权限时用 `chrome.scripting.registerContentScripts` 注册（`src/import/reader.ts`）：写进 manifest 会新增安装时的权限提示，已安装的用户更新后扩展会被停用、要手动重新启用
+- 从论文库移除这篇论文时，IndexedDB 里的页面一起删除
+
+早期版本把页面写到"下载/arxiv-html-helper/"文件夹、以 `file://` 打开。这些文件仍然可以打开和划线（需要"允许访问文件网址"）：内容脚本仍然注入所有 `file://` 页面，但只在 `<head>` 里有 `<meta name="ahh-paper-id" content="pdf-…">` 的页面上启用。扩展已经没有 `downloads` 权限，移除论文时不会删除这些文件，需要自己删。
 
 **页面一经生成不再改变**：划线定位依赖页面的结构和文字，所以即使以后转换规则改进了，已导入的论文也不会重新生成。页面里的 `<meta name="generator">` 记录了生成时的转换规则版本。
 
@@ -100,10 +104,10 @@ src/import/
   crossrefs.ts   识别对图、表、节、公式、定理的引用
   latexml.ts     渲染成 arXiv（LaTeXML）结构
   page.ts        完整页面：样式、<html lang>、论文 id
-  docs.ts        IndexedDB：页面 HTML 和本地文件的位置；导入期间暂存的 PDF
-  local-file.ts  写出本地文件、以 file:// 打开
+  docs.ts        IndexedDB：页面 HTML；导入期间暂存的 PDF
+  reader.ts      在阅读页里打开：替阅读页取页面 HTML、按权限注册阅读页的内容脚本
 ```
 
-权限：`downloads` 是可选权限，导入时才申请；MinerU 接口（`mineru.net`）、上传地址（阿里云 OSS）、结果 CDN（`cdn-mineru.openxlab.org.cn`）的访问权限同样在导入时申请。MinerU 改了上传或结果的域名时，导入会失败并提示"允许访问并重试"。
+权限：MinerU 接口（`mineru.net`）、上传地址（阿里云 OSS）、结果 CDN（`cdn-mineru.openxlab.org.cn`）和阅读页（`clamours.github.io`）的访问权限都在导入时申请；`scripting` 用来在阅读页上注册内容脚本。MinerU 改了上传或结果的域名时，导入会失败并提示"允许访问并重试"。
 
 上传时请求体用 `ArrayBuffer` 而不是 `File`：传 `File` / `Blob` 时浏览器会自动加上 `Content-Type: application/pdf`，而 MinerU 的预签名上传地址要求不带 Content-Type。
