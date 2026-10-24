@@ -7,7 +7,6 @@ import {
   GROUPS_KEY,
   normalizeGroups,
   SHELF_PREFIX,
-  TO_READ_ID,
   type Group,
   type Shelf,
 } from './groups';
@@ -91,7 +90,7 @@ export async function loadMeta(paperId: string): Promise<PaperMeta | null> {
   return ((await browser.storage.local.get(key))[key] as PaperMeta | undefined) ?? null;
 }
 
-/** 论文页打开时调用：更新元数据；第一次浏览时加入论文库的「待读」 */
+/** 论文页打开时调用：更新元数据；第一次浏览时加入论文库（不属于任何分组） */
 export function recordPageMeta(fromPage: PaperMeta): Promise<void> {
   return serial(async () => {
     const metaKey = metaKeyOf(fromPage.id);
@@ -100,7 +99,7 @@ export function recordPageMeta(fromPage: PaperMeta): Promise<void> {
     const writes: Record<string, unknown> = {
       [metaKey]: mergePageMeta((cur[metaKey] as PaperMeta | undefined) ?? null, fromPage),
     };
-    // 已有记录（包括手动移出了「待读」）时不再改动
+    // 已有记录时不再改动
     if (!cur[shelfKey]) {
       // 升级前就做过笔记的论文，加入时间取第一条笔记的时间
       writes[shelfKey] = cur[keyOf(fromPage.id)] ? shelfFor(cur, fromPage.id) : defaultShelf(fromPage.lastOpenedAt);
@@ -170,9 +169,8 @@ export function updateGroup(id: string, patch: Partial<Pick<Group, 'name' | 'col
   }));
 }
 
-/** 删除分组，并把它从所有论文上移除；「待读」不可删除 */
+/** 删除分组，并把它从所有论文上移除 */
 export function deleteGroup(id: string): Promise<void> {
-  if (id === TO_READ_ID) return Promise.reject(new Error('「待读」不可删除'));
   return serial(async () => {
     const all = await browser.storage.local.get(null);
     const now = Date.now();

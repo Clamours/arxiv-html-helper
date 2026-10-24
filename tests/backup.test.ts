@@ -40,9 +40,9 @@ describe('createBackup / parseBackup', () => {
     const b = createBackup(all, '0.1.0', new Date('2026-09-28T10:00:00Z'));
     expect(b).toMatchObject({ format: 'arxiv-html-notes-backup', version: 3, exportedAt: '2026-09-28T10:00:00.000Z', extensionVersion: '0.1.0' });
     expect(b.papers.map((p) => p.id)).toEqual(['A', 'B', 'D']);
-    expect(b.groups.map((g) => g.id)).toEqual(['to-read', 'g1']);
-    // 没有分组记录的论文导出默认值（在「待读」里）
-    expect(b.papers[0]!.shelf).toEqual({ groups: ['to-read'], flagged: false, addedAt: 1, updatedAt: 0 });
+    expect(b.groups.map((g) => g.id)).toEqual(['g1']);
+    // 没有分组记录的论文导出默认值（不属于任何分组）
+    expect(b.papers[0]!.shelf).toEqual({ groups: [], flagged: false, addedAt: 1, updatedAt: 0 });
     const parsed = parseBackup(JSON.stringify(b));
     expect(parsed.invalid).toBe(0);
     expect(parsed.papers).toEqual(b.papers);
@@ -97,7 +97,7 @@ describe('planImport', () => {
     const src = { 'paper:A': [ann('a1', 'A'), ann('a2', 'A')], 'meta:A': meta('A') };
     const plan = planImport({}, roundtrip(src));
     expect(plan.summary).toMatchObject({ papers: 1, newPapers: 1, added: 2, updated: 0, unchanged: 0, keptLocal: 0, newGroups: 0 });
-    expect(plan.writes).toEqual({ ...src, 'shelf:A': { groups: ['to-read'], flagged: false, addedAt: 1, updatedAt: 0 } });
+    expect(plan.writes).toEqual({ ...src, 'shelf:A': { groups: [], flagged: false, addedAt: 1, updatedAt: 0 } });
   });
 
   it('按 id 合并：新增、更新、保留本地较新的、相同的不写', () => {
@@ -151,15 +151,15 @@ describe('planImport：分组', () => {
     const backup = {
       groups: [group('theirs', 'agent'), group('new', 'Vision')],
       'paper:A': [ann('a', 'A')],
-      'shelf:A': shelf(['to-read', 'theirs', 'new'], { flagged: true, updatedAt: 9 }),
+      'shelf:A': shelf(['theirs', 'new'], { flagged: true, updatedAt: 9 }),
     };
     const plan = planImport(local, roundtrip(backup));
     expect(plan.summary).toMatchObject({ newGroups: 1, shelvesChanged: 1, unchanged: 1 });
-    expect((plan.writes.groups as Group[]).map((g) => g.name)).toEqual(['待读', 'RL', 'Agent', 'Vision']);
-    expect(plan.writes['shelf:A']).toEqual({ groups: ['mine', 'to-read', 'new'], flagged: true, addedAt: 1, updatedAt: 9 });
+    expect((plan.writes.groups as Group[]).map((g) => g.name)).toEqual(['RL', 'Agent', 'Vision']);
+    expect(plan.writes['shelf:A']).toEqual({ groups: ['mine', 'new'], flagged: true, addedAt: 1, updatedAt: 9 });
   });
 
-  it('本地已移出「待读」的论文：备份里没有 shelf（版本 1）时不改动', () => {
+  it('本地已有分组记录的论文：备份里没有 shelf（版本 1）时不改动', () => {
     const local = { 'paper:A': [ann('a', 'A')], 'shelf:A': shelf([]) };
     const v1 = { format: 'arxiv-html-notes-backup', version: 1, papers: [{ id: 'A', meta: null, annotations: [ann('a', 'A')] }] };
     const plan = planImport(local, parseBackup(JSON.stringify(v1)));
@@ -167,11 +167,11 @@ describe('planImport：分组', () => {
   });
 
   it('只浏览过、没有笔记的论文也会导入；备份里残留的已删除分组 id 被丢弃', () => {
-    const backup = { 'meta:B': meta('B'), 'shelf:B': shelf(['to-read', 'gone'], { flagged: true }) };
+    const backup = { groups: [group('g', 'RL')], 'meta:B': meta('B'), 'shelf:B': shelf(['g', 'gone'], { flagged: true }) };
     const plan = planImport({}, roundtrip(backup));
     expect(plan.summary).toMatchObject({ papers: 1, newPapers: 1, added: 0 });
     expect(plan.writes['meta:B']).toEqual(meta('B'));
-    expect(plan.writes['shelf:B']).toEqual(shelf(['to-read'], { flagged: true }));
+    expect(plan.writes['shelf:B']).toEqual(shelf(['g'], { flagged: true }));
     expect(planImport(plan.writes, roundtrip(backup)).writes).toEqual({});
   });
 });

@@ -1,0 +1,88 @@
+<!doctype html>
+<!-- Chrome 应用商店的顶部宣传图块（1400×560）。导出 PNG 见 scripts/render-icons.sh -->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; }
+  body { width: 1400px; height: 560px; overflow: hidden; }
+  .tile {
+    position: relative; width: 1400px; height: 560px; box-sizing: border-box; overflow: hidden;
+    display: flex; align-items: center; padding: 0 0 0 96px;
+    background: #faf8f5; color: #1d1d1f;
+    font-family: -apple-system, 'PingFang SC', sans-serif;
+  }
+  /* 底部一条 arXiv 红，和小图块一致 */
+  .tile::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 18px; background: #b31b1b; }
+
+  /* 左侧：图标 + 名称 + 功能 */
+  .brand { flex: none; width: 600px; }
+  .brand img { width: 128px; height: 128px; display: block; }
+  h1 { margin: 30px 0 0; white-space: nowrap; font: 700 58px/1.1 Georgia, 'Songti SC', serif; letter-spacing: -.01em; }
+  .hl { background: linear-gradient(transparent 58%, #ffe45c 58%, #ffe45c 94%, transparent 94%); padding: 0 4px; }
+  .lead { margin: 22px 0 0; font-size: 26px; color: #3a3a3c; letter-spacing: .02em; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+  .chips span { font-size: 18px; color: #6e6e73; padding: 7px 16px; border-radius: 999px; background: #efebe5; }
+
+  /* 右侧：论文页面示意，往右下溢出 */
+  .paper {
+    position: absolute; left: 760px; top: 64px; width: 700px; height: 560px; box-sizing: border-box;
+    padding: 44px 120px 44px 52px; background: #fff; border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(60, 40, 20, .14), 0 2px 6px rgba(0, 0, 0, .06);
+    font: 19px/1.7 Georgia, 'Times New Roman', serif; color: #222;
+  }
+  .paper h2 { margin: 0 0 14px; font: 700 26px/1.3 Georgia, serif; }
+  .paper p { margin: 0; }
+  .zh { margin-top: 8px !important; font: 17px/1.75 'PingFang SC', sans-serif; color: #444;
+        border-left: 3px solid #d8d8dc; padding-left: 14px; }
+  mark { color: inherit; border-radius: 2px; padding: 1px 0; }
+  .y { background: rgba(255, 214, 10, .45); }
+  .g { background: rgba(52, 199, 89, .35); }
+  .b { background: rgba(10, 132, 255, .28); }
+  .gap { height: 22px; }
+
+  /* 笔记卡片 */
+  .note {
+    position: absolute; left: 1000px; top: 404px; width: 310px; box-sizing: border-box;
+    padding: 16px 20px; background: #fff; border-radius: 10px; border: 1px solid rgba(0,0,0,.1);
+    box-shadow: 0 10px 32px rgba(0,0,0,.16); font-size: 16px; line-height: 1.55; color: #1d1d1f;
+  }
+  .note .bar { display: flex; gap: 8px; margin-bottom: 12px; }
+  .note .dot { width: 18px; height: 18px; border-radius: 50%; }
+  .note .dot.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1d1d1f; }
+</style>
+</head>
+<body>
+  <div class="tile">
+    <div class="brand">
+      <img src="../src/assets/icon.svg" alt="">
+      <h1>arXiv HTML <span class="hl">Helper</span></h1>
+      <p class="lead">在 arXiv 论文上划线、写笔记，原文和译文都能划</p>
+      <div class="chips">
+        <span>五色高亮</span><span>译文存档</span><span>论文库</span><span>WebDAV 同步</span><span>PDF 导入</span>
+      </div>
+    </div>
+
+    <div class="paper">
+      <h2>1&nbsp; Introduction</h2>
+      <p>Large language models have shown remarkable ability to follow instructions,
+        yet <mark class="y">their reasoning remains brittle when the task requires many intermediate steps</mark>.</p>
+      <p class="zh">大语言模型在遵循指令方面表现出色，但<mark class="g">当任务需要许多中间步骤时，其推理能力仍然脆弱</mark>。</p>
+      <div class="gap"></div>
+      <p>In this work, we propose <mark class="b">a simple training recipe</mark> that teaches models
+        to verify each step before moving on.</p>
+    </div>
+
+    <div class="note">
+      <div class="bar">
+        <span class="dot" style="background:#ffd60a"></span>
+        <span class="dot on" style="background:#34c759"></span>
+        <span class="dot" style="background:#0a84ff"></span>
+        <span class="dot" style="background:#ff375f"></span>
+        <span class="dot" style="background:#af52de"></span>
+      </div>
+      核心动机：多步推理容易出错，对比第 4 节的误差累积实验。
+    </div>
+  </div>
+</body>
+</html>

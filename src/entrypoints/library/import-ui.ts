@@ -153,7 +153,7 @@ export function initImportUi(): ImportUi {
   }
 
   function jobCard(job: ImportJob): HTMLElement {
-    const card = el('article', `paper job${job.step === 'failed' ? ' failed' : ''}`);
+    const card = el('article', `job${job.step === 'failed' ? ' failed' : ''}`);
     const text = el('div', 'paper-text');
     text.append(el('h2', '', job.fileName));
     const meta = el('div', 'meta');

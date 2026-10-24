@@ -203,10 +203,14 @@ export class SavedTranslations {
       for (const [key, b] of Object.entries(this.record.blocks)) {
         const el = resolveElementKey(b.blockKey, this.ctx.root, this.ctx.isForeign);
         if (!el || want.has(el) || this.ctx.isInPlace(el) || this.sourceHash(el) !== b.sourceHash) continue;
+        const tag = `${key}@${b.capturedAt}`;
         const roots = live.get(el);
-        // 与存档一致：照常显示翻译插件的译文（保留插件自己的样式）
-        if (roots?.length && this.ctx.translationMapOf(el, roots).text === this.archiveText(key, b)) continue;
-        want.set(el, { block: b, tag: `${key}@${b.capturedAt}`, done: false });
+        // 与存档一致：照常显示翻译插件的译文（保留插件自己的样式）。已经显示着存档的段落不再改回去：
+        // 陪读蛙会把段落里的存档也当作原文，插入、移除存档都会让它重翻、译文随之变化，来回切换就停不下来
+        if (roots?.length && !isShowing(el, tag) && this.ctx.translationMapOf(el, roots).text === this.archiveText(key, b)) {
+          continue;
+        }
+        want.set(el, { block: b, tag, done: false });
       }
     }
 
@@ -243,6 +247,10 @@ export class SavedTranslations {
     return changed;
   }
 }
+
+/** 原文块里已经插着这一版存档 */
+const isShowing = (block: Element, tag: string) =>
+  Array.from(block.children).some((c) => isSavedWrapper(c) && (c as HTMLElement).dataset.ahhEntry === tag);
 
 const signature = (r: PaperTranslations) =>
   `${r.clearedAt}|${Object.entries(r.blocks).map(([k, b]) => `${k}@${b.capturedAt}`).sort().join(',')}`;

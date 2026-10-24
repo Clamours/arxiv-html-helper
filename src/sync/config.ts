@@ -35,7 +35,7 @@ export const INTERVAL_OPTIONS = [1, 5, 15, 60];
 export const DEFAULT_CONFIG: SyncConfig = {
   provider: 'off',
   intervalMinutes: 5,
-  webdav: { url: '', username: '', password: '', folder: 'arxiv-notes' },
+  webdav: { url: '', username: '', password: '', folder: 'arxiv-html-helper' },
 };
 
 export interface SyncStatus {

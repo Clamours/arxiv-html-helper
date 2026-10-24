@@ -1,5 +1,5 @@
-<!-- 扩展图标：arXiv 红的笔记本，封面一个衬线体 "a"，底下一道荧光笔划线。字体用系统 Georgia，导出 PNG 见 scripts/render-icons.sh -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<!-- 扩展图标：arXiv 红的笔记本，封面一个衬线体 "a"，底下一道荧光笔划线。字体用系统 Georgia，导出 PNG 见 scripts/render-icons.sh。viewBox 裁到图案外缘只留约 1px 边，让工具栏里的图标和其他扩展一样大 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 11 106 106">
   <!-- 右上露出的书页 -->
   <rect x="32" y="12" width="78" height="96" rx="9" fill="#d9dee6"/>
   <rect x="32" y="12" width="74" height="92" rx="8" fill="#f4f6f9"/>

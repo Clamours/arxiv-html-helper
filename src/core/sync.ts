@@ -1,5 +1,5 @@
 import { BACKUP_FORMAT, BACKUP_VERSION, toAnnotation, toMeta, type BackupFile, type ParsedBackup } from './backup';
-import { GROUPS_KEY, normalizeGroups, SHELF_PREFIX, TO_READ_ID, toShelf, type Group, type Shelf } from './groups';
+import { GROUPS_KEY, normalizeGroups, SHELF_PREFIX, toShelf, type Group, type Shelf } from './groups';
 import { META_PREFIX, PAPER_PREFIX } from './library';
 import { pickDoc, type PaperMeta } from './paper';
 import {
@@ -122,7 +122,7 @@ export function mergeSync(a: SyncData, b: SyncData, now = Date.now()): SyncData 
   }
   let groups = [...byId.values()].filter((g) => !groupDeleted(deletedGroups, g));
 
-  // 同名分组：「待读」优先，其次先建的，再按 id，保证两台电脑选出同一个
+  // 同名分组：先建的优先，再按 id，保证两台电脑选出同一个
   const byName = new Map<string, Group[]>();
   for (const g of groups) {
     const name = g.name.trim().toLowerCase();
@@ -131,7 +131,7 @@ export function mergeSync(a: SyncData, b: SyncData, now = Date.now()): SyncData 
   const merged = new Set<string>();
   for (const same of byName.values()) {
     if (same.length < 2) continue;
-    same.sort((x, y) => Number(y.id === TO_READ_ID) - Number(x.id === TO_READ_ID) || x.createdAt - y.createdAt || cmp(x.id, y.id));
+    same.sort((x, y) => x.createdAt - y.createdAt || cmp(x.id, y.id));
     for (const loser of same.slice(1)) {
       deletedGroups[loser.id] = { at: Math.max(now, loser.updatedAt), mergedInto: same[0]!.id };
       merged.add(loser.id);

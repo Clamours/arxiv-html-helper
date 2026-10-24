@@ -1,4 +1,4 @@
-import { findGroupByName, GROUP_COLORS, TO_READ_ID, type Group, type GroupColor } from '@/core/groups';
+import { findGroupByName, GROUP_COLORS, type Group, type GroupColor } from '@/core/groups';
 import { countViews, groupView, type LibraryEntry, type View } from '@/core/library';
 import { createGroup, deleteGroup, updateGroup } from '@/core/storage';
 import { GROUP_SWATCH } from '@/shared/group-picker';
@@ -188,24 +188,22 @@ export function createNav(root: HTMLElement, opts: NavOptions): { render(state: 
       }),
     );
 
-    if (g.id !== TO_READ_ID) {
-      box.append(el('div', 'menu-sep'));
-      let armed = false;
-      const del = menuItem(TRASH_ICON, '删除分组', async () => {
-        if (!armed) {
-          armed = true;
-          del.classList.add('confirm');
-          del.lastChild!.textContent = count ? `确认删除？${count} 篇论文会移出该分组` : '确认删除';
-          return;
-        }
-        closePopover();
-        await deleteGroup(g.id);
-        if (state?.view === groupView(g.id)) opts.onSelect('all');
-        toast(`已删除分组「${g.name}」`);
-      });
-      del.classList.add('danger');
-      box.append(del);
-    }
+    box.append(el('div', 'menu-sep'));
+    let armed = false;
+    const del = menuItem(TRASH_ICON, '删除分组', async () => {
+      if (!armed) {
+        armed = true;
+        del.classList.add('confirm');
+        del.lastChild!.textContent = count ? `确认删除？${count} 篇论文会移出该分组` : '确认删除';
+        return;
+      }
+      closePopover();
+      await deleteGroup(g.id);
+      if (state?.view === groupView(g.id)) opts.onSelect('all');
+      toast(`已删除分组「${g.name}」`);
+    });
+    del.classList.add('danger');
+    box.append(del);
 
     openPopover(menuKey(g.id), anchor, box, { align: 'start' })?.el.querySelector<HTMLElement>('.menu-item')?.focus();
   }

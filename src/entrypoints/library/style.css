@@ -1,7 +1,7 @@
 /* 主题变量、图标按钮、划线、笔记块、空状态见 src/shared/theme.css */
 
 body { font-size: 14px; }
-.page { max-width: 760px; margin: 0 auto; padding: 0 24px; }
+.page { max-width: 860px; margin: 0 auto; padding: 0 24px; }
 
 /* ---- 布局：左侧栏 + 列表 ---- */
 .layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100vh; }
@@ -151,42 +151,55 @@ input[type="search"]:focus, select:focus {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-/* ---- 列表 ---- */
-main.page { padding-top: 16px; padding-bottom: 48px; display: flex; flex-direction: column; gap: 12px; }
+/* ---- 列表：一个面板，论文之间用分隔线 ---- */
+main.page { padding-top: 16px; padding-bottom: 48px; }
 
+.papers { background: var(--card); border: 1px solid var(--line); border-radius: 12px; }
 .paper {
-  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
-  padding: 14px 16px 14px 18px;
-  transition: border-color 0.12s;
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 10px 14px 18px;
+  transition: background-color 0.12s;
 }
-.paper:hover { border-color: var(--line-strong); }
+.paper + .paper { border-top: 1px solid var(--line); }
+.paper:first-child { border-radius: 11px 11px 0 0; }
+.paper:last-child { border-radius: 0 0 11px 11px; }
+.paper:only-child { border-radius: 11px; }
+.paper:hover, .paper:focus-within { background: var(--hover); }
 
-.paper-head { display: flex; align-items: flex-start; gap: 12px; }
 .paper-text { flex: 1; min-width: 0; }
-.paper h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; }
+.paper h2, .job h2 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.paper h2 {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+}
 .paper h2 a { color: inherit; text-decoration: none; }
 .paper h2 a:hover { color: var(--accent); }
-.authors {
-  margin-top: 3px; color: var(--fg-2); font-size: 13px;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
+
 .meta { margin-top: 4px; display: flex; flex-wrap: wrap; column-gap: 6px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .meta > span { white-space: nowrap; }
-.meta > span:not(:last-child)::after { content: "·"; margin-left: 6px; color: var(--muted); }
+.meta > span + span::before { content: "·"; margin-right: 6px; }
 .meta > .hit-count { color: var(--accent); }
+.meta > .authors, .meta > .file { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.meta > .authors { max-width: 24em; color: var(--fg-2); }
+.meta > .file { max-width: 18em; }
 
-.paper-actions { display: flex; gap: 2px; flex: none; margin: -4px -6px 0 0; }
-.paper-actions .icon-btn { opacity: 0.6; transition: opacity 0.12s, background-color 0.12s, color 0.12s; }
-.paper:hover .paper-actions .icon-btn, .paper:focus-within .paper-actions .icon-btn,
-.paper-actions .icon-btn.flagged { opacity: 1; }
-
-/* 分组 */
-.paper-groups { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.paper-groups .gchip.add { opacity: 0.7; transition: opacity 0.12s, background-color 0.12s, color 0.12s; }
-.paper:hover .paper-groups .gchip.add, .paper-groups .gchip.add.open, .paper-groups .gchip.add:focus-visible { opacity: 1; }
-/* 已有分组时"+"按钮只显示图标，做成圆形 */
-.paper-groups .gchip:not(:first-child).add { width: 22px; padding: 0; justify-content: center; }
+/* 分组固定在最后一行 */
+.paper-groups { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+.paper-groups .gchip { height: 20px; font-size: 11.5px; }
+/* 已有分组时"+"只显示图标，做成圆形，悬停整行时出现 */
+.paper-groups .gchip:not(:first-child).add { width: 20px; padding: 0; justify-content: center; }
 .paper-groups .gchip:not(:first-child).add svg { margin: 0; }
+
+/* 操作按钮悬停整行时出现；已标记的旗帜和"确认删除"一直显示 */
+.paper-actions { display: flex; flex: none; margin-top: -2px; }
+.paper-actions .icon-btn { width: 28px; height: 28px; }
+.paper-actions .icon-btn svg { width: 18px; height: 18px; }
+.paper-actions .icon-btn, .paper-groups .gchip:not(:first-child).add { opacity: 0; transition: opacity 0.12s, background-color 0.12s, color 0.12s; }
+.paper:hover .paper-actions .icon-btn, .paper:focus-within .paper-actions .icon-btn,
+.paper-actions .icon-btn.flagged, .paper-actions .icon-btn.confirm,
+.paper:hover .paper-groups .gchip.add, .paper:focus-within .paper-groups .gchip.add, .paper-groups .gchip.add.open { opacity: 1; }
+@media (hover: none) {
+  .paper-actions .icon-btn, .paper-groups .gchip:not(:first-child).add { opacity: 1; }
+}
 .icon-btn.confirm {
   width: auto; padding: 0 10px; font-size: 12.5px; white-space: nowrap;
   color: var(--danger); background: var(--danger-bg);
@@ -255,10 +268,14 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.28); backdrop-filter: blur(2px); 
 .gstate { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13.5px; }
 .gstate .ok { color: var(--live); font-weight: 600; }
 .sync-state { margin: 12px 0 0; color: var(--muted); font-size: 12.5px; }
-/* 导入 PDF */
+/* 导入 PDF：正在导入的任务用卡片显示在列表上方 */
+.job {
+  background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px 12px 16px;
+}
 .jobs { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; }
 .jobs:not([hidden]) + main.page { padding-top: 12px; }
-.job .paper-head { align-items: center; }
+.job .paper-head { display: flex; align-items: center; gap: 12px; }
 .job-status { margin-top: 6px; font-size: 13px; color: var(--fg-2); }
 .job.failed .job-status { color: var(--danger); }
 .job progress { display: block; width: 100%; height: 4px; margin-top: 8px; accent-color: var(--accent); }

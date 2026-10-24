@@ -119,7 +119,7 @@ export function initSyncUi(): void {
       field('服务器地址', 'url', w.url, 'https://dav.jianguoyun.com/dav/', (v) => (w.url = v)),
       field('用户名', 'text', w.username, '坚果云填登录邮箱', (v) => (w.username = v), 'username'),
       field('密码', 'password', w.password, '坚果云填"应用密码"', (v) => (w.password = v), 'current-password'),
-      field('文件夹', 'text', w.folder, 'arxiv-notes', (v) => (w.folder = v)),
+      field('文件夹', 'text', w.folder, 'arxiv-html-helper', (v) => (w.folder = v)),
       el(
         'p',
         'hint',

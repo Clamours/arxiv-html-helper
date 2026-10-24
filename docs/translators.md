@@ -51,10 +51,14 @@
 
 扩展自己的译文存档（见 [saved-translations.md](saved-translations.md)）也按双语模式的结构插入：`span.notranslate.ahh-saved-translation[translate=no]` 追加到原文块内部末尾。存档显示时，同一段里翻译插件的 wrapper 加上 `data-ahh-superseded` 隐藏。
 
+陪读蛙双语模式（2026-10-12，arxiv.org/html/2608.16739v1 上实测）：
+
+- 段落里插入或移除存档 wrapper 后，陪读蛙会删掉自己的译文、重新翻译这一段
+- 不跳过存档 wrapper：存档里的公式会被当作行内原子追加到它的译文末尾，译文文本随存档在不在而变。所以存档一旦显示就不再因为"与插件译文一致"而移除，否则两边来回切换
+
 ## 待在真实页面上确认
 
-- 两个插件是否都跳过 `notranslate` / `translate="no"` 的存档 wrapper，不会把存档的中文再翻一遍
-- 段落里插入存档 wrapper 后，插件是否会认为段落内容变了而重新翻译
+- 沉浸式翻译是否跳过 `notranslate` / `translate="no"` 的存档 wrapper，插入存档 wrapper 后是否重翻段落
 - 沉浸式翻译的加载元素 `[data-immersive-translate-loading-id]` 是否在段落内部（存档时据此跳过还没翻完的段落）
 
 - 含公式的 arXiv 段落在仅译文模式下，实际走的是原地替换还是兜底

@@ -99,7 +99,7 @@ describe('mergeSync：笔记', () => {
 describe('mergeSync：论文', () => {
   it('从论文库移除会同步：移除前的笔记、元数据、分组都删掉', () => {
     const a = { 'tomb:A': { paper: 50, annotations: {} } };
-    const b = { 'paper:A': [ann('x', 'A', { updatedAt: 40 })], 'meta:A': meta('A', { lastOpenedAt: 45 }), 'shelf:A': shelf(['to-read']) };
+    const b = { 'paper:A': [ann('x', 'A', { updatedAt: 40 })], 'meta:A': meta('A', { lastOpenedAt: 45 }), 'shelf:A': shelf([]) };
     const m = merge(a, b);
     expect(m.papers.get('A')).toEqual({ id: 'A', meta: null, shelf: null, annotations: [], tomb: { paper: 50, annotations: {} } });
   });
@@ -109,7 +109,7 @@ describe('mergeSync：论文', () => {
     const b = {
       'paper:A': [ann('old', 'A', { updatedAt: 10 }), ann('new', 'A', { createdAt: 60, updatedAt: 60 })],
       'meta:A': meta('A', { lastOpenedAt: 60 }),
-      'shelf:A': shelf(['to-read'], { addedAt: 60, updatedAt: 0 }),
+      'shelf:A': shelf([], { addedAt: 60, updatedAt: 0 }),
     };
     const p = merge(a, b).papers.get('A')!;
     expect(p.annotations.map((x) => x.id)).toEqual(['new']);
@@ -126,15 +126,15 @@ describe('mergeSync：论文', () => {
   });
 
   it('分组和标记取修改时间较新的一份：移出分组也能同步', () => {
-    const a = { 'shelf:A': shelf(['to-read', 'g'], { flagged: true, updatedAt: 5 }) };
+    const a = { 'shelf:A': shelf(['h', 'g'], { flagged: true, updatedAt: 5 }) };
     const b = { 'shelf:A': shelf(['g'], { updatedAt: 9, addedAt: 3 }), groups: [group('g', 'RL')] };
     expect(merge(a, b).papers.get('A')!.shelf).toEqual(shelf(['g'], { updatedAt: 9, addedAt: 1 }));
   });
 
-  it('两边都没手动改过分组（自动加入「待读」）时取并集', () => {
-    const a = { 'shelf:A': shelf(['to-read'], { updatedAt: 0, addedAt: 5 }) };
-    const b = { 'shelf:A': shelf(['to-read'], { updatedAt: 0, addedAt: 3 }) };
-    expect(merge(a, b).papers.get('A')!.shelf).toEqual(shelf(['to-read'], { updatedAt: 0, addedAt: 3 }));
+  it('两边都没手动改过分组时加入时间取较早的', () => {
+    const a = { 'shelf:A': shelf([], { updatedAt: 0, addedAt: 5 }) };
+    const b = { 'shelf:A': shelf([], { updatedAt: 0, addedAt: 3 }) };
+    expect(merge(a, b).papers.get('A')!.shelf).toEqual(shelf([], { updatedAt: 0, addedAt: 3 }));
   });
 
   it('删除记录超过保留期后清除', () => {
@@ -146,19 +146,19 @@ describe('mergeSync：论文', () => {
 });
 
 describe('mergeSync：分组', () => {
-  it('改名、改颜色取较新的；删除会同步；「待读」不会被删', () => {
+  it('改名、改颜色取较新的；删除会同步（包括旧版本的「待读」）', () => {
     const a = { groups: [group('g', 'RL 新名', { updatedAt: 9 }), group('h', 'Vision')], 'groups-deleted': { 'to-read': { at: 99 } } };
     const b = { groups: [group('g', 'RL', { updatedAt: 5 }), group('h', 'Vision')], 'groups-deleted': { h: { at: 50 } } };
     const m = merge(a, b);
-    expect(m.groups.map((g) => g.name)).toEqual(['待读', 'RL 新名']);
-    expect(m.deletedGroups).toEqual({ h: { at: 50 } });
+    expect(m.groups.map((g) => g.name)).toEqual(['RL 新名']);
+    expect(m.deletedGroups).toEqual({ 'to-read': { at: 99 }, h: { at: 50 } });
   });
 
   it('两台电脑各自新建的同名分组合并为先建的那个，论文上的 id 跟着换', () => {
     const a = { groups: [group('ga', 'Agent', { createdAt: 5 })], 'shelf:A': shelf(['ga'], { updatedAt: 5 }) };
-    const b = { groups: [group('gb', 'agent', { createdAt: 3 })], 'shelf:B': shelf(['gb', 'to-read'], { updatedAt: 5 }) };
+    const b = { groups: [group('gb', 'agent', { createdAt: 3 })], 'shelf:B': shelf(['gb'], { updatedAt: 5 }) };
     const m = merge(a, b);
-    expect(m.groups.map((g) => g.id)).toEqual(['to-read', 'gb']);
+    expect(m.groups.map((g) => g.id)).toEqual(['gb']);
     expect(m.deletedGroups.ga).toEqual({ at: NOW, mergedInto: 'gb' });
     expect(m.papers.get('A')!.shelf!.groups).toEqual(['gb']);
     expect(fingerprint(m)).toBe(fingerprint(merge(b, a)));
@@ -167,8 +167,8 @@ describe('mergeSync：分组', () => {
   });
 
   it('已删除分组的 id 从论文上去掉', () => {
-    const m = merge({ 'groups-deleted': { g: { at: 9 } } }, { groups: [group('g', 'RL')], 'shelf:A': shelf(['g', 'to-read']) });
-    expect(m.papers.get('A')!.shelf!.groups).toEqual(['to-read']);
+    const m = merge({ 'groups-deleted': { g: { at: 9 } } }, { groups: [group('g', 'RL'), group('h', 'Vision')], 'shelf:A': shelf(['g', 'h']) });
+    expect(m.papers.get('A')!.shelf!.groups).toEqual(['h']);
   });
 });
 
@@ -176,7 +176,7 @@ describe('mergeSync 的性质', () => {
   const a = {
     'paper:A': [ann('x', 'A', { note: '1', updatedAt: 3 }), ann('y', 'A')],
     'meta:A': meta('A'),
-    'shelf:A': shelf(['g', 'to-read'], { updatedAt: 4 }),
+    'shelf:A': shelf(['g'], { updatedAt: 4 }),
     groups: [group('g', 'RL'), group('k', 'Same', { createdAt: 9 })],
     'tomb:B': { annotations: { b1: 5 } },
   };

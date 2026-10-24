@@ -169,14 +169,14 @@ function process(paperId: string, runner: Runner): Promise<void> {
         // 扩展重新构建 / 更新后，旧页面里记着的代码文件名已经不存在了
         throw new ImportError('扩展已更新，请刷新论文库页面后点"重试"（不会重新上传和解析）', 'remote');
       });
-      // 早期版本创建的任务没有暂存 PDF，这时不补图
+      // 早期版本创建的任务没有暂存 PDF，这时只能用 MinerU 的截图，也不补图
       const pdf = await loadPdf(paperId);
       const built = await buildPageFromZip(document, zip, {
         paperId,
-        recoverFigures: pdf
-          ? async (numbers) => {
-              const { recoverFiguresFromPdf } = await import('./pdf-loader');
-              return recoverFiguresFromPdf(pdf, numbers);
+        fromPdf: pdf
+          ? async (req) => {
+              const { figuresFromPdf } = await import('./pdf-loader');
+              return figuresFromPdf(pdf, req);
             }
           : undefined,
         fetchImage: async (url) => {
@@ -198,6 +198,7 @@ function process(paperId: string, runner: Runner): Promise<void> {
       await removeJob(paperId);
       const notes = [
         built.recoveredFigures && `MinerU 漏掉的 ${built.recoveredFigures} 张图已从 PDF 补回`,
+        pdf && built.mineruImages && `${built.mineruImages} 张图没能从 PDF 中取出，使用 MinerU 的截图`,
         built.missingFigures && `${built.missingFigures} 张图没能识别，只显示图注`,
       ].filter(Boolean);
       runner.onDone(paperId, meta.title, notes.join('；'));

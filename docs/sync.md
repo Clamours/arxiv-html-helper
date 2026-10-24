@@ -39,7 +39,7 @@
    - 服务器地址：`https://dav.jianguoyun.com/dav/`
    - 用户名：坚果云登录邮箱
    - 密码：上一步生成的应用密码
-   - 文件夹：默认 `arxiv-notes`，不存在时会自动创建
+   - 文件夹：默认 `arxiv-html-helper`，不存在时会自动创建
 3. 点"保存并同步"。Chrome 会询问是否允许访问该服务器，需要允许
 
 密码以明文保存在本机的 `chrome.storage.local` 里，不会上传，也不会进备份文件。

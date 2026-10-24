@@ -78,9 +78,9 @@ Open source (MIT): https://github.com/Clamours/arxiv-html-helper
 | 类别（Category） | 效率（Productivity）下的"教育"（Education）；没有这一项就选"工具"（Tools） |
 | 语言（Language） | 中文（简体） |
 | 商店图标 | `public/icon/128.png` |
-| 屏幕截图 | 自己截 1280×800 的图，至少 1 张，最多 5 张，见下方建议 |
+| 屏幕截图 | `store/screenshots/` 下的 5 张（1280×800），按文件名顺序上传 |
 | 小型宣传图块（440×280） | `store/promo-small.png`（源文件 `store/promo-small.html`，用 `scripts/render-icons.sh` 导出） |
-| 顶部宣传图块（1400×560） | 可不填 |
+| 顶部宣传图块（1400×560） | `store/promo-marquee.png`（源文件 `store/promo-marquee.html`，同样用 `scripts/render-icons.sh` 导出） |
 | 官方网址（Official URL） | 可不填。要填的话需要先在 Google Search Console 验证网站所有权 |
 | 首页网址（Homepage URL） | `https://clamours.github.io/arxiv-html-helper/` |
 | 支持网址（Support URL） | `https://github.com/Clamours/arxiv-html-helper/issues` |

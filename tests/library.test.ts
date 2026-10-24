@@ -49,8 +49,8 @@ describe('groupLibrary', () => {
     const a = lib.find((e) => e.id === '1706.03762')!;
     expect(a.meta?.title).toBe('Title 1706.03762');
     expect(a.lastNoteAt).toBe(9);
-    // 没有分组记录：默认在「待读」，加入时间取最早的笔记或打开时间
-    expect(a.shelf).toEqual({ groups: ['to-read'], flagged: false, addedAt: 2, updatedAt: 0 });
+    // 没有分组记录：默认不属于任何分组，加入时间取最早的笔记或打开时间
+    expect(a.shelf).toEqual({ groups: [], flagged: false, addedAt: 2, updatedAt: 0 });
     const b = lib.find((e) => e.id === '2401.00001')!;
     expect(b.meta).toBeNull();
     expect(b.version).toBe('v3'); // 没有元数据时用笔记里的版本
@@ -139,9 +139,9 @@ describe('extractMeta', () => {
 
 describe('侧栏视图', () => {
   const g = (id: string, order: number): Group => ({ id, name: id, color: 'blue', order, createdAt: 0, updatedAt: 0 });
-  const groups = [g('to-read', 0), g('rl', 1), g('agent', 2)];
+  const groups = [g('rl', 1), g('agent', 2)];
   const lib = groupLibrary({
-    'meta:A': meta('A'), // 默认：待读
+    'meta:A': meta('A'), // 默认：不属于任何分组
     'shelf:B': { groups: ['rl', 'agent'], flagged: true, addedAt: 1, updatedAt: 1 },
     'shelf:C': { groups: [], flagged: false, addedAt: 1, updatedAt: 1 },
     'shelf:D': { groups: ['deleted-group'], flagged: false, addedAt: 1, updatedAt: 1 }, // 只剩已删除分组的残留 id
@@ -151,14 +151,13 @@ describe('侧栏视图', () => {
   it('按视图过滤', () => {
     expect(ids('all')).toEqual(['A', 'B', 'C', 'D']);
     expect(ids('flagged')).toEqual(['B']);
-    expect(ids('ungrouped')).toEqual(['C', 'D']);
-    expect(ids('group:to-read')).toEqual(['A']);
+    expect(ids('ungrouped')).toEqual(['A', 'C', 'D']);
     expect(ids('group:rl')).toEqual(['B']);
   });
 
   it('计数', () => {
     expect(Object.fromEntries(countViews(lib, groups))).toEqual({
-      all: 4, flagged: 1, ungrouped: 2, 'group:to-read': 1, 'group:rl': 1, 'group:agent': 1,
+      all: 4, flagged: 1, ungrouped: 3, 'group:rl': 1, 'group:agent': 1,
     });
   });
 });

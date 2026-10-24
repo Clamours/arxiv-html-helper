@@ -1,11 +1,12 @@
 import { strToU8, unzlibSync, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { buildPageFromZip } from '../src/import/bundle';
+import { buildPageFromZip, imageRegions } from '../src/import/bundle';
 import {
   buildLines,
   captionRegex,
   encodePng,
   locateFigure,
+  regionFigure,
   type Box,
   type PageModel,
   type PlacedImage,
@@ -164,6 +165,67 @@ describe('定位图', () => {
   });
 });
 
+describe('MinerU 截图的区域', () => {
+  const fig = image(320, 343, 567, 563);
+
+  it('区域就是一张嵌入位图：取原图（MinerU 的框比位图略大或略小都行）', () => {
+    expect(regionFigure(page({ images: [fig] }), box(318, 340, 569, 566)).image).toBe(fig);
+    expect(regionFigure(page({ images: [fig] }), box(325, 350, 560, 560)).image).toBe(fig);
+  });
+
+  it('区域里还有坐标轴文字、多张位图，或者只是大图的一部分：渲染', () => {
+    const withAxis = page({ images: [fig], lines: [line('Accuracy', 300, 450, 318, 8)] });
+    expect(regionFigure(withAxis, box(290, 340, 569, 566)).image).toBeUndefined();
+    const two = page({ images: [image(320, 343, 440, 563, 'a'), image(447, 343, 567, 563, 'b')] });
+    expect(regionFigure(two, box(318, 340, 569, 566)).image).toBeUndefined();
+    expect(regionFigure(page({ images: [fig] }), box(320, 343, 440, 563)).image).toBeUndefined();
+  });
+
+  it('位图上叠加了文字或标注：渲染；边框、背景不算', () => {
+    const crop = box(318, 340, 569, 566);
+    expect(regionFigure(page({ images: [fig], lines: [line('(a)', 400, 500, 415, 8)] }), crop).image).toBeUndefined();
+    expect(regionFigure(page({ images: [fig], paths: [box(400, 450, 480, 450)] }), crop).image).toBeUndefined();
+    expect(regionFigure(page({ images: [fig], paths: [box(320, 343, 567, 563), box(0, 0, 612, 792)] }), crop).image).toBe(fig);
+  });
+
+  it('没有位图（矢量图）：渲染整个区域', () => {
+    const loc = regionFigure(page({ paths: [box(330, 400, 550, 560)] }), box(320, 390, 560, 570));
+    expect(loc).toEqual({ crop: box(320, 390, 560, 570) });
+  });
+});
+
+describe('读取 MinerU 截图的位置', () => {
+  const json = (v: unknown) => strToU8(JSON.stringify(v));
+  const span = (path: string, bbox: number[]) => ({ type: 'image_body', bbox, lines: [{ bbox, spans: [{ type: 'image', bbox, image_path: path }] }] });
+
+  it('layout.json：坐标按 page_size 换算；同一张图出现多次取第一次', () => {
+    const files = {
+      'r/layout.json': json({
+        pdf_info: [
+          { page_idx: 0, page_size: [612, 792], para_blocks: [{ type: 'image', blocks: [span('a.jpg', [61.2, 79.2, 306, 396])] }] },
+          { page_idx: 1, page_size: [612, 792], preproc_blocks: [span('b.jpg', [0, 0, 612, 396])], para_blocks: [span('b.jpg', [0, 0, 612, 396])] },
+        ],
+      }),
+    };
+    const r = imageRegions(files);
+    expect([...r.keys()]).toEqual(['a.jpg', 'b.jpg']);
+    expect(r.get('a.jpg')!.page).toBe(0);
+    expect(r.get('a.jpg')!.box.x0).toBeCloseTo(0.1);
+    expect(r.get('a.jpg')!.box.y1).toBeCloseTo(0.5);
+    expect(r.get('b.jpg')).toEqual({ page: 1, box: { x0: 0, y0: 0, x1: 1, y1: 0.5 } });
+  });
+
+  it('content_list.json：bbox 是 0–1000；像素坐标（早期版本）不用', () => {
+    const item = (bbox: number[]) => ({ type: 'image', img_path: 'images/c.jpg', page_idx: 2, bbox });
+    expect(imageRegions({ 'x_content_list.json': json([item([100, 200, 900, 600])]) }).get('c.jpg')).toEqual({ page: 2, box: { x0: 0.1, y0: 0.2, x1: 0.9, y1: 0.6 } });
+    expect(imageRegions({ 'x_content_list.json': json([item([100, 200, 1200, 1600])]) }).size).toBe(0);
+  });
+
+  it('文件损坏或格式不认识时忽略', () => {
+    expect(imageRegions({ 'layout.json': strToU8('{'), 'a_content_list.json': json({ pages: [] }) }).size).toBe(0);
+  });
+});
+
 /** 解码自己生成的 PNG（只支持 encodePng 用到的滤波方式），检查无损 */
 function decodePng(png: Uint8Array): { w: number; h: number; channels: number; data: Uint8Array } {
   const view = new DataView(png.buffer, png.byteOffset);
@@ -221,32 +283,51 @@ describe('PNG', () => {
   });
 });
 
-describe('生成页面时补图', () => {
-  const md = '# T\n\n## 1 X\n\n(1) Curriculum label\n\nFigure 1: Missing in MinerU.\n\nFigure 2: Also missing.\n\nText.';
-  const zip = zipSync({ 'out/full.md': strToU8(md) });
+describe('生成页面时从 PDF 取图', () => {
+  const md = '# T\n\n## 1 X\n\n(1) Curriculum label\n\nFigure 1: Missing in MinerU.\n\nFigure 2: Also missing.\n\n![](images/a.jpg)\n\nFigure 3: Cropped.\n\n![](images/b.jpg)\n\nFigure 4: Not in PDF.\n\n![](images/c.jpg)\n\nFigure 5: No region.\n\nText.';
+  const item = (name: string, page: number) => ({ type: 'image', img_path: `images/${name}`, page_idx: page, bbox: [100, 100, 900, 500] });
+  const zip = zipSync({
+    'out/full.md': strToU8(md),
+    'out/images/a.jpg': new Uint8Array([0xff, 0xd8, 0xff]),
+    'out/images/b.jpg': new Uint8Array([0xff, 0xd8, 0xfe]),
+    'out/images/c.jpg': new Uint8Array([0xff, 0xd8, 0xfd]),
+    'out/x_content_list.json': strToU8(JSON.stringify([item('a.jpg', 0), item('b.jpg', 1)])),
+  });
+  const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+  const imgOf = (html: string, id: string) => new DOMParser().parseFromString(html, 'text/html').getElementById(id)!.querySelector('img')?.getAttribute('src');
 
-  it('按图号补回图片；补不回来的仍只显示图注', async () => {
-    const asked: string[][] = [];
+  it('MinerU 截的图换成 PDF 里的图，取不到时用截图；漏掉的图按图号补回', async () => {
+    const asked: unknown[] = [];
     const built = await buildPageFromZip(document, zip, {
       paperId: 'pdf-0123456789abcdef0123',
-      recoverFigures: async (numbers) => {
-        asked.push(numbers);
-        return new Map([['1', 'data:image/png;base64,iVBORw0KGgo=']]);
+      fromPdf: async (req) => {
+        asked.push(req);
+        return { regions: new Map([['images/a.jpg', PNG]]), numbers: new Map([['1', PNG]]) };
       },
     });
-    expect(asked).toEqual([['1', '2']]);
-    expect(built).toMatchObject({ recoveredFigures: 1, missingFigures: 1 });
-    const doc = new DOMParser().parseFromString(built.html, 'text/html');
-    expect(doc.getElementById('S1.F1')!.querySelector('img')!.getAttribute('src')).toBe('data:image/png;base64,iVBORw0KGgo=');
-    expect(doc.getElementById('S1.F1')!.querySelector('.ltx_figure_missing')).toBeNull();
-    expect(doc.getElementById('S1.F2')!.querySelector('.ltx_figure_missing')).not.toBeNull();
+    expect(asked).toEqual([
+      {
+        regions: [
+          { key: 'images/a.jpg', page: 0, box: { x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.5 } },
+          { key: 'images/b.jpg', page: 1, box: { x0: 0.1, y0: 0.1, x1: 0.9, y1: 0.5 } },
+        ],
+        numbers: ['1', '2'],
+      },
+    ]);
+    expect(built).toMatchObject({ pdfImages: 1, mineruImages: 2, recoveredFigures: 1, missingFigures: 1, missingImages: 0 });
+    expect(imgOf(built.html, 'S1.F1')).toBe(PNG);
+    expect(imgOf(built.html, 'S1.F2')).toBeUndefined();
+    expect(imgOf(built.html, 'S1.F3')).toBe(PNG);
+    expect(imgOf(built.html, 'S1.F4')).toBe('data:image/jpeg;base64,/9j+');
+    expect(imgOf(built.html, 'S1.F5')).toBe('data:image/jpeg;base64,/9j9');
   });
 
-  it('补图失败不影响生成页面', async () => {
+  it('取图失败不影响生成页面，全部用 MinerU 的截图', async () => {
     const built = await buildPageFromZip(document, zip, {
       paperId: 'pdf-0123456789abcdef0123',
-      recoverFigures: () => Promise.reject(new Error('pdf.js failed')),
+      fromPdf: () => Promise.reject(new Error('pdf.js failed')),
     });
-    expect(built).toMatchObject({ recoveredFigures: 0, missingFigures: 2 });
+    expect(built).toMatchObject({ pdfImages: 0, mineruImages: 3, recoveredFigures: 0, missingFigures: 2 });
+    expect(imgOf(built.html, 'S1.F3')).toBe('data:image/jpeg;base64,/9j/');
   });
 });

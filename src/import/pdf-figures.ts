@@ -1,11 +1,13 @@
 /**
- * 从原 PDF 补回 MinerU 没识别出来的图。
+ * 从原 PDF 取图（MinerU 截的 jpg 分辨率低、有压缩损失）。导入时 PDF 就在手里，用 pdf.js：
  *
- * MinerU 偶尔会把整张图当成文字区域（只 OCR 出图里的几行字，不输出图片），Markdown 里只剩下 "Figure N:" 图注。
- * 导入时 PDF 就在手里，所以用 pdf.js 在 PDF 里找到这条图注，取紧挨着它的图：
- * 1. 图注所在栏里、图注上方（找不到再看下方）到最近一行正文之间的区域
- * 2. 区域里只有一张嵌入位图、并且它就是整张图时，直接取原图（无损，比 MinerU 截的 jpg 清晰）
- * 3. 否则（矢量图、多张位图拼成的图）把这块区域渲染成图片
+ * - MinerU 截了图的：按 MinerU 记录的截图位置（页码、区域）在 PDF 里取同一块区域
+ * - MinerU 没识别出来的图：MinerU 偶尔会把整张图当成文字区域（只 OCR 出图里的几行字，不输出图片），
+ *   Markdown 里只剩下 "Figure N:" 图注。在 PDF 里找到这条图注，取图注所在栏里、图注上方（找不到再看下方）
+ *   到最近一行正文之间的图
+ *
+ * 区域里只有一张嵌入位图、并且它就是整张图时，直接取原图（无损）；否则（矢量图、多张位图拼成的图、
+ * 位图上叠加了文字）把这块区域高分辨率渲染成图片。
  *
  * 坐标都是 PDF 用户空间（单位 pt，原点在左下角，y 向上）。定位逻辑是纯函数，方便测试；
  * pdf.js 由调用方传入（浏览器里用带 worker 的版本，测试里用 Node 版）。
@@ -297,6 +299,22 @@ function search(
   return image ? { crop, image } : { crop };
 }
 
+/** MinerU 截图的区域：区域里只有一张嵌入位图、没有别的文字和图形时取原图，否则渲染 */
+export function regionFigure(page: PageModel, crop: Box): FigureLocation {
+  const hits = page.images.filter((im) => area(intersect(im, crop)) > 0.05 * area(crop));
+  const im = hits.length === 1 ? hits[0]! : undefined;
+  if (!im || im.rotated) return { crop };
+  // 区域只是一张大图的一部分，或者位图只占区域的一小块
+  const common = area(intersect(im, crop));
+  if (common < 0.85 * area(im) || common < 0.7 * area(crop)) return { crop };
+  // 位图旁边的坐标轴、图例，叠加在位图上的文字、标注，原图里都没有；位图的边框、背景不算
+  const core = grow(im, -2);
+  const touches = (b: Box) => b.x0 < core.x1 && b.x1 > core.x0 && b.y0 < core.y1 && b.y1 > core.y0;
+  const text = page.lines.some((l) => area(intersect(l, crop)) > 0.5 * area(l));
+  const graphics = page.paths.some((p) => (touches(p) && area(p) < 0.9 * area(im)) || (inside(p, crop, 0) && !inside(p, im)));
+  return text || graphics ? { crop } : { crop, image: im };
+}
+
 // ---------------------------------------------------------------------------
 // 读取页面
 // ---------------------------------------------------------------------------
@@ -503,7 +521,8 @@ export interface CanvasLike {
 
 /** 把页面上的一块区域渲染成 PNG（data: URL） */
 async function renderCrop(page: PDFPageProxy, crop: Box, createCanvas: (w: number, h: number) => CanvasLike): Promise<{ url: string; w: number; h: number }> {
-  const scale = Math.min(4, Math.max(2, 1400 / width(crop)));
+  // 至少 216 dpi（MinerU 截图约 200 dpi），宽度一般在 1800 像素左右
+  const scale = Math.min(4, Math.max(3, 1800 / width(crop)));
   const base = page.getViewport({ scale });
   const [ax, ay] = base.convertToViewportPoint(crop.x0, crop.y1);
   const [bx, by] = base.convertToViewportPoint(crop.x1, crop.y0);
@@ -541,14 +560,59 @@ export interface RecoverOptions {
   createCanvas?: (w: number, h: number) => CanvasLike;
 }
 
+/** MinerU 截图的位置 */
+export interface RegionRequest {
+  key: string;
+  /** 页码，从 0 开始 */
+  page: number;
+  /** 在页面上的相对位置（0–1），原点在左上角，和页面显示的方向一致 */
+  box: Box;
+}
+
+export interface FigureRequest {
+  regions: RegionRequest[];
+  /** MinerU 没识别出来的图的图号 */
+  numbers: string[];
+}
+
+export interface PdfFigures {
+  /** key → 图 */
+  regions: Map<string, RecoveredFigure>;
+  /** 图号 → 图 */
+  numbers: Map<string, RecoveredFigure>;
+}
+
 /** 嵌入位图编码后超过这个大小时改为渲染（渲染的分辨率有上限） */
 const MAX_EMBEDDED_BYTES = 4 * 1024 * 1024;
 
-/** 按图号在 PDF 里找图；找不到的图号不在结果里 */
-export async function recoverFigures(pdf: Uint8Array, numbers: string[], opts: RecoverOptions): Promise<Map<string, RecoveredFigure>> {
-  const out = new Map<string, RecoveredFigure>();
-  const wanted = new Set(numbers);
-  if (!wanted.size) return out;
+/** 相对位置 → PDF 用户空间（考虑页面旋转和裁剪框） */
+function pdfBox(page: PDFPageProxy, r: Box): Box {
+  const vp = page.getViewport({ scale: 1 });
+  const [ax, ay] = vp.convertToPdfPoint(r.x0 * vp.width, r.y0 * vp.height) as [number, number];
+  const [bx, by] = vp.convertToPdfPoint(r.x1 * vp.width, r.y1 * vp.height) as [number, number];
+  return { x0: Math.min(ax, bx), y0: Math.min(ay, by), x1: Math.max(ax, bx), y1: Math.max(ay, by) };
+}
+
+async function figureAt(page: PDFPageProxy, p: number, loc: FigureLocation, opts: RecoverOptions): Promise<RecoveredFigure | null> {
+  if (loc.image) {
+    const png = await embeddedPng(opts.lib, page, loc.image).catch(() => null);
+    if (png && png.length <= MAX_EMBEDDED_BYTES) {
+      const size = new DataView(png.buffer, png.byteOffset + 16, 8);
+      return { dataUrl: dataUrl(png, 'image/png'), width: size.getUint32(0), height: size.getUint32(4), how: 'embedded', page: p };
+    }
+  }
+  if (!opts.createCanvas) return null;
+  const r = await renderCrop(page, loc.crop, opts.createCanvas).catch(() => null);
+  return r && { dataUrl: r.url, width: r.w, height: r.h, how: 'rendered', page: p };
+}
+
+/** 按截图位置、图号在 PDF 里取图；取不到的不在结果里 */
+export async function extractFigures(pdf: Uint8Array, req: FigureRequest, opts: RecoverOptions): Promise<PdfFigures> {
+  const out: PdfFigures = { regions: new Map(), numbers: new Map() };
+  const wanted = new Set(req.numbers);
+  const byPage = new Map<number, RegionRequest[]>();
+  for (const r of req.regions) byPage.set(r.page + 1, [...(byPage.get(r.page + 1) ?? []), r]);
+  if (!wanted.size && !byPage.size) return out;
   // getDocument 会转移 data 的 ArrayBuffer，传一份副本
   const doc = await opts.lib.getDocument({
     data: new Uint8Array(pdf),
@@ -560,29 +624,23 @@ export async function recoverFigures(pdf: Uint8Array, numbers: string[], opts: R
       : {}),
   }).promise;
   try {
-    for (let p = 1; p <= doc.numPages && wanted.size; p++) {
+    for (let p = 1; p <= doc.numPages; p++) {
+      const regions = byPage.get(p) ?? [];
+      if (!regions.length && !wanted.size) continue;
       const page = await doc.getPage(p);
       const lines = await pageLines(page);
       const here = [...wanted].filter((n) => lines.some((l) => !l.rotated && captionRegex(n).test(l.text)));
-      if (!here.length) continue;
+      if (!regions.length && !here.length) continue;
       const model = await pageModel(opts.lib, page, lines);
+      for (const r of regions) {
+        const fig = await figureAt(page, p, regionFigure(model, grow(pdfBox(page, r.box), 1)), opts);
+        if (fig) out.regions.set(r.key, fig);
+      }
       for (const n of here) {
         const loc = locateFigure(model, n);
-        if (!loc) continue;
-        let fig: RecoveredFigure | null = null;
-        if (loc.image) {
-          const png = await embeddedPng(opts.lib, page, loc.image).catch(() => null);
-          if (png && png.length <= MAX_EMBEDDED_BYTES) {
-            const size = new DataView(png.buffer, png.byteOffset + 16, 8);
-            fig = { dataUrl: dataUrl(png, 'image/png'), width: size.getUint32(0), height: size.getUint32(4), how: 'embedded', page: p };
-          }
-        }
-        if (!fig && opts.createCanvas) {
-          const r = await renderCrop(page, loc.crop, opts.createCanvas).catch(() => null);
-          if (r) fig = { dataUrl: r.url, width: r.w, height: r.h, how: 'rendered', page: p };
-        }
+        const fig = loc && (await figureAt(page, p, loc, opts));
         if (fig) {
-          out.set(n, fig);
+          out.numbers.set(n, fig);
           wanted.delete(n);
         }
       }

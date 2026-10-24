@@ -16,7 +16,7 @@ export interface LibraryEntry {
   /** 旧数据可能没有：论文库页会从 arXiv API 补全，打开论文页也会补上 */
   meta: PaperMeta | null;
   annotations: Annotation[];
-  /** 没有 shelf 记录时为默认值（只在「待读」里） */
+  /** 没有 shelf 记录时为默认值（不属于任何分组） */
   shelf: Shelf;
   /** 打开论文时用的版本：最近打开的版本，否则最近一条笔记的版本 */
   version: string;

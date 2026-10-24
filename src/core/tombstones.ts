@@ -1,4 +1,4 @@
-import { TO_READ_ID, type Group, type Shelf } from './groups';
+import type { Group, Shelf } from './groups';
 import type { PaperMeta } from './paper';
 
 /**
@@ -50,7 +50,7 @@ export function toGroupTombs(x: unknown): GroupTombs {
   const out: GroupTombs = {};
   if (!isObj(x)) return out;
   for (const [id, t] of Object.entries(x)) {
-    if (!id || id === TO_READ_ID || !isObj(t) || !isTime(t.at)) continue;
+    if (!id || !isObj(t) || !isTime(t.at)) continue;
     out[id] = typeof t.mergedInto === 'string' && t.mergedInto ? { at: t.at, mergedInto: t.mergedInto } : { at: t.at };
   }
   return out;
@@ -67,9 +67,7 @@ export const metaDeleted = (t: PaperTomb, m: PaperMeta) => paperAt(t) >= m.lastO
 /** 移除论文之后重新加入或改过分组的，保留 */
 export const shelfDeleted = (t: PaperTomb, s: Shelf) => paperAt(t) >= Math.max(s.addedAt, s.updatedAt);
 
-/** 「待读」不可删除 */
-export const groupDeleted = (tombs: GroupTombs, g: Group) =>
-  g.id !== TO_READ_ID && (tombs[g.id]?.at ?? -1) >= g.updatedAt;
+export const groupDeleted = (tombs: GroupTombs, g: Group) => (tombs[g.id]?.at ?? -1) >= g.updatedAt;
 
 /** 内容被删除后又手动恢复（如导入备份）时用的修改时间：晚于删除时间，保证同步时不会再被删掉 */
 export const reviveTime = (deletedAt: number, now: number) => Math.max(now, deletedAt + 1);

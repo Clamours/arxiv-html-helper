@@ -286,7 +286,7 @@ export function planImport(current: Record<string, unknown>, parsed: ParsedBacku
     const tomb = toPaperTomb(current[TOMB_PREFIX + paper.id]);
     const removedAt = tomb.paper ?? 0;
 
-    // 分组：版本 1 的备份没有分组信息，不改动本地（新论文按默认进「待读」）
+    // 分组：版本 1 的备份没有分组信息，不改动本地（新论文不属于任何分组）
     if (paper.shelf) {
       const shelfKey = SHELF_PREFIX + paper.id;
       const incoming = mapShelf(paper.shelf);

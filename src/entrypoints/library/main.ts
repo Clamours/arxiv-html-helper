@@ -145,7 +145,7 @@ function render(): void {
   const results = searchLibrary(sortLibrary(shown, sort.value as SortKey), query);
   list.replaceChildren();
   if (!entries.length) {
-    list.append(empty(HIGHLIGHTER_ICON, '论文库还是空的', '打开 arxiv.org/html/… 的论文会自动加入「待读」，选中文字即可划线'));
+    list.append(empty(HIGHLIGHTER_ICON, '论文库还是空的', '打开 arxiv.org/html/… 的论文会自动加入论文库，选中文字即可划线'));
     return;
   }
   if (!shown.length) {
@@ -157,23 +157,26 @@ function render(): void {
     return;
   }
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  for (const r of results) list.append(paperCard(r, terms));
+  const box = el('div', 'papers');
+  for (const r of results) box.append(paperRow(r, terms));
+  list.append(box);
 }
 
 function emptyView(): HTMLElement {
-  if (view === 'flagged') return empty(FLAG_ICON, '还没有标记的论文', '点击论文卡片右上角的旗帜即可标记');
+  if (view === 'flagged') return empty(FLAG_ICON, '还没有标记的论文', '把鼠标移到论文上，点右侧的旗帜即可标记');
   if (view === 'ungrouped') return empty(INBOX_ICON, '所有论文都已分组', '');
-  return empty(TAG_ICON, '这个分组还没有论文', '在论文卡片上点"加入分组"，或在论文页的侧边栏里添加');
+  return empty(TAG_ICON, '这个分组还没有论文', '把鼠标移到论文上，点"+"加入分组，或在论文页的侧边栏里添加');
 }
 
-function paperCard({ entry, matched }: SearchResult, terms: string[]): HTMLElement {
-  const card = el('article', 'paper');
+/** 列表中的一项：标题，作者和元信息，最后一行是分组；操作按钮悬停时显示 */
+function paperRow({ entry, matched }: SearchResult, terms: string[]): HTMLElement {
+  const row = el('article', 'paper');
   const all = sortByDocumentOrder(entry.annotations);
 
-  // ---- 标题、作者、元信息 ----
-  const head = el('div', 'paper-head');
   const text = el('div', 'paper-text');
   const h2 = el('h2', '');
+  // 标题最多显示两行，完整标题放在悬停提示里
+  h2.title = titleOf(entry);
   const link = el('a', '') as HTMLAnchorElement;
   const imported = isImportedId(entry.id);
   if (imported) {
@@ -191,16 +194,17 @@ function paperCard({ entry, matched }: SearchResult, terms: string[]): HTMLEleme
   h2.append(link);
   text.append(h2);
 
+  const meta = el('div', 'meta');
   const authors = entry.meta?.authors ?? [];
   if (authors.length) {
-    const a = el('div', 'authors');
+    const a = el('span', 'authors');
     a.title = authors.join(', ');
     a.append(highlight(authorsLine(authors), terms));
-    text.append(a);
+    meta.append(a);
   }
-
-  const meta = el('div', 'meta');
-  const idSpan = el('span', '');
+  // 导入的 PDF 文件名可能很长，过长时截断
+  const idSpan = el('span', imported ? 'file' : '');
+  if (imported) idSpan.title = entry.meta?.doc?.fileName ?? '';
   idSpan.append(highlight(imported ? `PDF · ${entry.meta?.doc?.fileName || '导入'}` : `${entry.id}${entry.version}`, terms));
   meta.append(idSpan);
   if (entry.meta?.published) meta.append(el('span', '', entry.meta.published.slice(0, 4)));
@@ -216,22 +220,21 @@ function paperCard({ entry, matched }: SearchResult, terms: string[]): HTMLEleme
   }
   // 关键词命中划线或笔记时，说明这篇论文为什么被搜出来
   if (matched.length) meta.append(el('span', 'hit-count', `${matched.length} 条划线匹配`));
-  text.append(meta);
+  text.append(meta, groupChips(entry));
 
   const actions = el('div', 'paper-actions');
   actions.append(flagButton(entry));
   if (all.length) actions.append(copyButton(entry, all));
   actions.append(deleteButton(entry));
-  head.append(text, actions);
-  card.append(head, groupRow(entry));
-  return card;
+  row.append(text, actions);
+  return row;
 }
 
-/** 卡片底部：所属分组（点击查看该分组）和"加入分组"按钮 */
-function groupRow(entry: LibraryEntry): HTMLElement {
-  const row = el('div', 'paper-groups');
+/** 最后一行：所属分组（点击查看该分组）和"加入分组"按钮 */
+function groupChips(entry: LibraryEntry): HTMLElement {
+  const box = el('div', 'paper-groups');
   const mine = groupsOf(entry, groups);
-  for (const g of mine) row.append(groupChip(g, () => setView(groupView(g.id))));
+  for (const g of mine) box.append(groupChip(g, () => setView(groupView(g.id))));
   const add = el('button', 'gchip add') as HTMLButtonElement;
   add.innerHTML = PLUS_ICON;
   if (!mine.length) add.append('加入分组');
@@ -239,8 +242,8 @@ function groupRow(entry: LibraryEntry): HTMLElement {
   add.setAttribute('aria-label', '加入或移出分组');
   markPopoverAnchor(add, pickerKey(entry.id));
   add.addEventListener('click', () => void openGroupPicker(add, entry.id));
-  row.append(add);
-  return row;
+  box.append(add);
+  return box;
 }
 
 function flagButton(entry: LibraryEntry): HTMLButtonElement {

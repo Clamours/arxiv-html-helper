@@ -38,7 +38,8 @@ export function webdavProvider(config: WebdavConfig, name = SYNC_FILE_NAME): Syn
   return {
     async read(): Promise<RemoteFile> {
       const res = await call('GET', file);
-      if (res.status === 404) return { texts: [] };
+      // 文件夹不存在时坚果云返回 409（AncestorsNotFound），等同于文件不存在；写入时再创建文件夹
+      if (res.status === 404 || res.status === 409) return { texts: [] };
       if (!res.ok) throw new SyncError(`读取云端文件失败（HTTP ${res.status}）`, 'remote');
       return { texts: [await res.text()], version: res.headers.get('ETag') };
     },

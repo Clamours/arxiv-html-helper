@@ -5,15 +5,12 @@ import { COLORS, type HighlightColor } from './types';
  * - `groups`：全部分组的定义。论文按 id 引用分组，重命名只改这一处
  * - `shelf:<paperId>`：这篇论文属于哪些分组、是否标记
  *
- * 浏览过的论文自动加入内置的「待读」分组。没有 shelf 记录的论文（升级前的旧数据）
- * 视为只在「待读」里，见 defaultShelf。
+ * 浏览过的论文加入论文库时不属于任何分组。没有 shelf 记录的论文（升级前的旧数据）按 defaultShelf 处理。
  * 这里只放纯逻辑，读写 storage 在 storage.ts。
  */
 
 export const GROUPS_KEY = 'groups';
 export const SHELF_PREFIX = 'shelf:';
-/** 内置分组，不可删除，可以改名和颜色 */
-export const TO_READ_ID = 'to-read';
 
 export type GroupColor = HighlightColor | 'gray';
 export const GROUP_COLORS: GroupColor[] = [...COLORS, 'gray'];
@@ -38,13 +35,11 @@ export interface Shelf {
   updatedAt: number;
 }
 
-const TO_READ: Group = { id: TO_READ_ID, name: '待读', color: 'blue', order: 0, createdAt: 0, updatedAt: 0 };
-
 export function defaultShelf(addedAt: number): Shelf {
-  return { groups: [TO_READ_ID], flagged: false, addedAt, updatedAt: 0 };
+  return { groups: [], flagged: false, addedAt, updatedAt: 0 };
 }
 
-/** 校验、去重、排序；「待读」缺失时补上 */
+/** 校验、去重、排序 */
 export function normalizeGroups(value: unknown): Group[] {
   const byId = new Map<string, Group>();
   if (Array.isArray(value)) {
@@ -53,7 +48,6 @@ export function normalizeGroups(value: unknown): Group[] {
       if (g && !byId.has(g.id)) byId.set(g.id, g);
     }
   }
-  if (!byId.has(TO_READ_ID)) byId.set(TO_READ_ID, { ...TO_READ });
   return [...byId.values()].sort((a, b) => a.order - b.order || a.createdAt - b.createdAt);
 }
 

@@ -3,7 +3,7 @@ import { ADAPTERS, LIVE_ADAPTERS } from '@/adapters';
 import { anchorAnnotation, describeRange, type Anchored } from '@/core/anchor';
 import { DocContext } from '@/core/context';
 import type { PageState, Request, SyncNowRequest, TranslationRequest } from '@/core/messages';
-import { extractMeta, type PaperRef } from '@/core/paper';
+import { extractMeta, isImportedId, type PaperRef } from '@/core/paper';
 import {
   addAnnotation,
   deleteAnnotation,
@@ -17,6 +17,7 @@ import {
 import { toPaperTranslations, type PaperTranslations, type SavedBlock } from '@/core/translations';
 import type { Annotation, HighlightColor } from '@/core/types';
 import { Highlighter } from './highlighter';
+import { mountToc } from './toc';
 import { injectSavedStyle, isSavedWrapper, SavedTranslations } from './translations';
 import { PageUi } from './ui';
 
@@ -29,6 +30,8 @@ export async function startApp(paper: PaperRef): Promise<void> {
   const ui = new PageUi();
   const ctx = new DocContext(root, ADAPTERS, (n) => ui.contains(n));
   const hl = new Highlighter();
+  // 导入的论文没有 arXiv 页面自带的目录；在翻译插件改写标题之前生成
+  if (isImportedId(paper.id) && root.localName === 'article') mountToc(root, ctx.isForeign);
 
   // ---- 译文存档：先在翻译插件改写原文之前记下原文哈希，再读取存档 ----
   let recheckTimer: ReturnType<typeof setTimeout> | undefined;
@@ -82,7 +85,7 @@ export async function startApp(paper: PaperRef): Promise<void> {
   let annotations: Annotation[] = initialAnnotations;
   if (initialSaved) saved.setRecord(initialSaved);
   saved.setVisible(visible);
-  // 浏览过的论文自动加入论文库的「待读」；每次打开时刷新标题、版本和最近打开时间。
+  // 浏览过的论文自动加入论文库（不属于任何分组）；每次打开时刷新标题、版本和最近打开时间。
   // 没有正文（如"该论文没有 HTML 版本"的错误页）时不收录
   const recordMeta = () => void recordPageMeta(extractMeta(document, paper)).catch(() => {});
   if (annotations.length || document.querySelector('.ltx_document')) recordMeta();

@@ -241,6 +241,22 @@ describe('显示（存档优先）', () => {
     expect(h.saved.summary().shown).toBe(0);
   });
 
+  it('已经显示着存档的段落，插件重翻后与存档一致也不移除存档（避免与陪读蛙来回切换）', () => {
+    const archive = captureOnce();
+    root = loadFixture();
+    const h = harness(root, archive);
+    // 插件的译文与存档不同 → 显示存档
+    let live = injectTranslation($('S1.p2.1'), '另一种译文', 'read-frog');
+    expect(h.update()).toBe(true);
+    // 陪读蛙看到段落变了，删掉译文重翻，这次与存档一字不差
+    live.remove();
+    live = injectTranslation($('S1.p2.1'), ZH, 'read-frog');
+    expect(h.update()).toBe(false);
+    expect(root.querySelectorAll('.ahh-saved-translation')).toHaveLength(1);
+    expect(live.hasAttribute('data-ahh-superseded')).toBe(true);
+    expect(h.saved.summary().shown).toBe(1);
+  });
+
   it('原文变了（论文改版）不套用旧存档，重新采集', () => {
     const archive = captureOnce();
     root = loadFixture();

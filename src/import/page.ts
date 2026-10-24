@@ -20,12 +20,14 @@ export function detectLang(paper: MinerUPaper): 'zh' | 'en' {
 }
 
 export const PAGE_CSS = `
-:root { color-scheme: light dark; --fg: #1a1a1a; --bg: #fff; --muted: #555; --rule: #999; --link: #2b59c3; }
-@media (prefers-color-scheme: dark) { :root { --fg: #ddd; --bg: #1c1c1e; --muted: #aaa; --rule: #666; --link: #8ab4f8; } }
+:root { color-scheme: light dark; --fg: #1a1a1a; --bg: #fff; --muted: #555; --rule: #999; --link: #2b59c3; --target: #fff3c4; }
+@media (prefers-color-scheme: dark) { :root { --fg: #ddd; --bg: #1c1c1e; --muted: #aaa; --rule: #666; --link: #8ab4f8; --target: #3d3620; } }
 html { background: var(--bg); color: var(--fg); }
 body { margin: 0; font: 17px/1.6 "Noto Serif", "Source Serif 4", Georgia, "Songti SC", serif; }
 .ltx_page_main { max-width: 52em; margin: 0 auto; padding: 2em 1.5em 6em; }
 a { color: var(--link); }
+.ltx_ref { text-decoration: none; }
+.ltx_ref:hover { text-decoration: underline; }
 math { font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", math; }
 .ltx_title_document { font-size: 1.9em; line-height: 1.25; text-align: center; margin: 0.5em 0; }
 .ltx_authors { text-align: center; color: var(--muted); margin: 1em 0 2em; }
@@ -64,6 +66,7 @@ figure { margin: 1.5em 0; }
 .ltx_biblist { list-style: none; padding: 0; font-size: 0.92em; }
 .ltx_bibitem { margin: 0.4em 0; padding-left: 1.5em; text-indent: -1.5em; }
 .ltx_bibitem .ltx_tag { margin-right: 0.3em; }
+.ltx_bibitem:target { background: var(--target); }
 `;
 
 function escapeHtml(s: string): string {
@@ -71,7 +74,7 @@ function escapeHtml(s: string): string {
 }
 
 /** 转换规则的版本，写在页面里便于排查问题。页面生成后不会因为这个版本变化而重新生成 */
-export const CONVERTER_VERSION = 3;
+export const CONVERTER_VERSION = 5;
 
 export interface PageOptions extends RenderOptions {
   /** 导入论文的 id，写进 <meta>，内容脚本据此识别本地打开的论文页面 */

@@ -5,6 +5,7 @@
 import { unzipSync } from 'fflate';
 import { allBlocks, parseMinerUMarkdown, type Block, type MinerUPaper } from './mineru';
 import { standaloneHtml } from './page';
+import type { Box, FigureRequest, RegionRequest } from './pdf-figures';
 
 const MIME: Record<string, string> = {
   jpg: 'image/jpeg',
@@ -37,11 +38,73 @@ function joinPath(dir: string, rel: string): string {
   return out.join('/');
 }
 
+/** 图片路径（含远程地址）的文件名，MinerU 用内容的哈希命名 */
+const baseName = (path: string) => path.split(/[?#]/)[0]!.split('/').pop() ?? '';
+
+const isNums = (v: unknown, n: number): v is number[] => Array.isArray(v) && v.length === n && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+
+function walk(v: unknown, visit: (o: Record<string, unknown>) => void): void {
+  if (Array.isArray(v)) for (const x of v) walk(x, visit);
+  else if (v && typeof v === 'object') {
+    visit(v as Record<string, unknown>);
+    for (const x of Object.values(v)) walk(x, visit);
+  }
+}
+
+function parseJson(bytes: Uint8Array | undefined): unknown {
+  if (!bytes) return undefined;
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * MinerU 截图在 PDF 里的位置：文件名 → 页码（从 0 开始）和相对位置（0–1，原点在左上角）。
+ * - layout.json（middle.json）：pdf_info[页].page_size 是页面大小，image_path + bbox 的 span 是截图（单位和 page_size 相同）
+ * - *_content_list.json：img_path、page_idx、bbox（0–1000）。早期版本的 bbox 是像素，有大于 1000 的值时整个文件不用
+ */
+export function imageRegions(files: Record<string, Uint8Array>): Map<string, Omit<RegionRequest, 'key'>> {
+  const out = new Map<string, Omit<RegionRequest, 'key'>>();
+  const add = (path: unknown, page: unknown, b: number[], w: number, h: number) => {
+    if (typeof path !== 'string' || typeof page !== 'number' || !(page >= 0) || !(w > 0 && h > 0)) return;
+    const box: Box = { x0: Math.max(0, b[0]! / w), y0: Math.max(0, b[1]! / h), x1: Math.min(1, b[2]! / w), y1: Math.min(1, b[3]! / h) };
+    const name = baseName(path);
+    if (name && box.x1 - box.x0 > 0.005 && box.y1 - box.y0 > 0.005 && !out.has(name)) out.set(name, { page, box });
+  };
+  const paths = Object.keys(files);
+  for (const p of paths.filter((p) => /(^|\/)(layout|middle)\.json$/.test(p))) {
+    const pages = (parseJson(files[p]) as { pdf_info?: unknown } | undefined)?.pdf_info;
+    if (!Array.isArray(pages)) continue;
+    pages.forEach((pg: { page_idx?: unknown; page_size?: unknown }, i) => {
+      if (!isNums(pg?.page_size, 2)) return;
+      const [w, h] = pg.page_size;
+      const page = typeof pg.page_idx === 'number' ? pg.page_idx : i;
+      walk(pg, (o) => {
+        if (isNums(o.bbox, 4)) add(o.image_path, page, o.bbox, w!, h!);
+      });
+    });
+  }
+  for (const p of paths.filter((p) => /content_list\.json$/.test(p))) {
+    const items = parseJson(files[p]);
+    if (!Array.isArray(items)) continue;
+    const boxes = items.filter((o: { img_path?: unknown; bbox?: unknown }) => typeof o?.img_path === 'string' && isNums(o.bbox, 4));
+    if (boxes.some((o: { bbox: number[] }) => o.bbox.some((x) => x > 1000))) continue;
+    for (const o of boxes) add(o.img_path, o.page_idx, o.bbox, 1000, 1000);
+  }
+  return out;
+}
+
 export interface BuiltPage {
   html: string;
   paper: MinerUPaper;
   /** 没能内嵌的图片（页面上不显示） */
   missingImages: number;
+  /** 从原 PDF 重新取的图片 */
+  pdfImages: number;
+  /** 仍然用 MinerU 截图的图片（没有截图位置、或者 PDF 里取不到） */
+  mineruImages: number;
   /** MinerU 没识别出图片、从原 PDF 补回的图 */
   recoveredFigures: number;
   /** 补不回来、只显示图注的图 */
@@ -52,8 +115,11 @@ export interface BuildOptions {
   paperId: string;
   /** 结果里引用了远程图片时用来下载；返回 null 表示下载失败 */
   fetchImage?: (url: string) => Promise<{ bytes: Uint8Array; mime: string } | null>;
-  /** 按图号从原 PDF 里取 MinerU 没识别出来的图；返回 图号 → data: URL，找不到的图号不在结果里 */
-  recoverFigures?: (numbers: string[]) => Promise<Map<string, string>>;
+  /**
+   * 从原 PDF 里取图：MinerU 截图所在区域的图（key 是图片路径），MinerU 没识别出来的图（按图号）。
+   * 返回 key / 图号 → data: URL，取不到的不在结果里
+   */
+  fromPdf?: (req: FigureRequest) => Promise<{ regions: Map<string, string>; numbers: Map<string, string> }>;
 }
 
 export async function buildPageFromZip(doc: Document, zip: Uint8Array, opts: BuildOptions): Promise<BuiltPage> {
@@ -71,15 +137,29 @@ export async function buildPageFromZip(doc: Document, zip: Uint8Array, opts: Bui
   const base = mdPath.slice(0, mdPath.lastIndexOf('/') + 1).replace(/\/$/, '');
   const paper = parseMinerUMarkdown(new TextDecoder().decode(files[mdPath]));
 
-  // 只有图注、没有图片的图：MinerU 把这张图当成了文字。从原 PDF 里补回来（补不回来就只显示图注）
-  const orphans = allBlocks(paper).filter(
-    (b): b is Extract<Block, { kind: 'figure' }> => b.kind === 'figure' && !b.panels.length && !!b.number,
-  );
+  // MinerU 截的图都换成从原 PDF 里取的（更清晰），取不到时用 MinerU 的截图。
+  // 只有图注、没有图片的图：MinerU 把这张图当成了文字，也从原 PDF 里补回来（补不回来就只显示图注）
+  const figures = allBlocks(paper).filter((b): b is Extract<Block, { kind: 'figure' }> => b.kind === 'figure');
+  const panels = figures.flatMap((b) => b.panels);
+  const orphans = figures.filter((b) => !b.panels.length && !!b.number);
+  const located = imageRegions(files);
+  const regions = new Map<string, RegionRequest>();
+  for (const p of panels) {
+    const r = located.get(baseName(p.src));
+    if (r && !/^data:/i.test(p.src)) regions.set(p.src, { key: p.src, ...r });
+  }
+  let pdfImages = 0;
   let recoveredFigures = 0;
-  if (orphans.length && opts.recoverFigures) {
-    const found = await opts.recoverFigures([...new Set(orphans.map((b) => b.number!))]).catch(() => new Map<string, string>());
+  if ((regions.size || orphans.length) && opts.fromPdf) {
+    const found = await opts.fromPdf({ regions: [...regions.values()], numbers: [...new Set(orphans.map((b) => b.number!))] }).catch(() => null);
+    for (const p of panels) {
+      const url = found?.regions.get(p.src);
+      if (!url) continue;
+      p.src = url;
+      pdfImages++;
+    }
     for (const b of orphans) {
-      const url = found.get(b.number!);
+      const url = found?.numbers.get(b.number!);
       if (!url) continue;
       b.panels = [{ src: url, alt: '' }];
       recoveredFigures++;
@@ -102,5 +182,13 @@ export async function buildPageFromZip(doc: Document, zip: Uint8Array, opts: Bui
   );
 
   const html = standaloneHtml(doc, paper, { paperId: opts.paperId, resolveImage: (src) => images.get(src) ?? null });
-  return { html, paper, missingImages: srcs.size - images.size, recoveredFigures, missingFigures: orphans.length - recoveredFigures };
+  return {
+    html,
+    paper,
+    missingImages: srcs.size - images.size,
+    pdfImages,
+    mineruImages: panels.length - pdfImages,
+    recoveredFigures,
+    missingFigures: orphans.length - recoveredFigures,
+  };
 }
