@@ -36,6 +36,8 @@ const OFFICIAL = FOR_STORE || FOR_GITHUB;
 export default defineConfig({
   srcDir: 'src',
   outDirTemplate: `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}${FOR_STORE ? '-store' : FOR_GITHUB ? '-github' : ''}`,
+  // GitHub 包另起文件名，免得和商店包互相覆盖、上传时拿错
+  zip: { artifactTemplate: `{{name}}-{{packageVersion}}-{{browser}}${FOR_GITHUB ? '-github' : ''}.zip` },
   hooks: {
     'build:publicAssets': (_wxt, files) => {
       const root = resolve('node_modules/pdfjs-dist');

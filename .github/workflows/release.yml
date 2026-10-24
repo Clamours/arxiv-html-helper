@@ -44,7 +44,7 @@ jobs:
       - name: 打包
         run: |
           GITHUB_BUILD=1 npx wxt zip
-          cp .output/*-chrome.zip "arxiv-html-helper-$VERSION.zip"
+          cp .output/*.zip "arxiv-html-helper-$VERSION.zip"
       - name: 检查扩展 ID、名字和版本
         run: |
           unzip -p "arxiv-html-helper-$VERSION.zip" manifest.json | node -e '
