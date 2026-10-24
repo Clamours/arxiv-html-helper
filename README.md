@@ -4,6 +4,23 @@ Chrome 扩展：在 arXiv HTML 论文页（`arxiv.org/html/…`、ar5iv）上划
 
 项目主页：<https://clamours.github.io/arxiv-html-helper/> · [隐私政策](https://clamours.github.io/arxiv-html-helper/privacy.html)
 
+## 安装
+
+推荐从 [Chrome 应用商店](https://chromewebstore.google.com/detail/hckjdjhkldddjpaecpkpicfmpfggpfie) 安装，可以自动更新。
+
+### 从 GitHub 安装
+
+访问不了 Chrome 应用商店时，可以用 [Releases](https://github.com/Clamours/arxiv-html-helper/releases) 里的 zip：
+
+1. 下载最新版本的 `arxiv-html-helper-<版本>.zip`，解压到一个固定的文件夹（之后不要删除或移动）
+2. 打开 `chrome://extensions`，开启右上角的"开发者模式"
+3. 点"加载已解压的扩展程序"，选择这个文件夹
+
+这个包和商店版代码相同、扩展 ID 相同，但不会自动更新：
+
+- **升级**：清空原文件夹，解压新版本进去，再在 `chrome://extensions` 点扩展卡片上的刷新按钮，笔记都会保留。不要点"移除"，移除会删掉扩展的数据
+- **换成商店版**：两者 ID 相同，不能同时安装。先在论文库导出备份（或开启云同步），移除 GitHub 版，从商店安装后再导入
+
 ## 使用
 
 ```bash
@@ -11,10 +28,17 @@ npm install
 npm run dev      # 启动开发模式，自动打开一个装好扩展的 Chrome
 npm run build    # 产物在 .output/chrome-mv3，可在 chrome://extensions "加载已解压的扩展程序"
 npm run zip      # 打包上传 Chrome 应用商店（不含 manifest 的 key）
+npm run zip:github  # GitHub Release 包（带 key，需要 .env.local 里的 EXTENSION_KEY），平时由 CI 构建
 npm test
 ```
 
-`dev` 和 `build` 出的是开发版：名字带 "(Dev)"、图标是蓝色封面，和商店安装的正式版（红色封面）装在一起也分得清。只有 `zip` 出的是正式版，构建到单独的 `.output/chrome-mv3-store`，不影响本地加载的 `.output/chrome-mv3`。
+`dev` 和 `build` 出的是开发版：名字带 "(Dev)"、图标是蓝色封面，和商店安装的正式版（红色封面）装在一起也分得清。`zip` 和 `zip:github` 出的是正式版，分别构建到 `.output/chrome-mv3-store` 和 `.output/chrome-mv3-github`，不影响本地加载的 `.output/chrome-mv3`。
+
+### 发布新版本
+
+1. 改 `package.json` 的 `version`，提交
+2. `npm run zip`，把 `.output/arxiv-html-helper-<版本>-chrome.zip` 上传到 Chrome 应用商店开发者后台并提交审核
+3. 打 tag 并推送：`git tag -a v<版本> -m "<版本>" && git push origin main v<版本>`。[release.yml](.github/workflows/release.yml) 会检查 tag 与 `version` 一致、跑测试、构建带 key 的包并创建 GitHub Release
 
 构建配置放在 `.env.local`（参照 `.env.example`）：`EXTENSION_KEY` 用来固定扩展 ID，`GOOGLE_CLIENT_ID` 用来启用 Google Drive 同步。两项都可以不填，详见 [docs/sync.md](docs/sync.md)。
 

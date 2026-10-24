@@ -9,6 +9,7 @@
     "dev": "wxt",
     "build": "wxt build",
     "zip": "STORE_BUILD=1 wxt zip",
+    "zip:github": "GITHUB_BUILD=1 wxt zip",
     "compile": "tsc --noEmit",
     "test": "vitest run",
     "mineru": "tsx scripts/mineru-to-html.ts",

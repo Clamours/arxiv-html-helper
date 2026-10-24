@@ -13,12 +13,18 @@ const PDFJS_DATA: [dir: string, keep: (file: string) => boolean][] = [
 ];
 
 /**
- * 只有 `npm run zip`（STORE_BUILD=1）打的是商店包；`npm run dev` / `npm run build` 都是开发版，
- * 名字带 "(Dev)"、图标换成蓝色封面（src/assets/icon-dev/，由 scripts/render-icons.sh 导出），
- * 和从商店安装的正式版装在同一个 Chrome 里时一眼能分清。商店包单独构建到 .output/chrome-mv3-store，
- * 不会覆盖本地加载的 .output/chrome-mv3
+ * 三种构建：
+ * - 商店包：`npm run zip`（STORE_BUILD=1），构建到 .output/chrome-mv3-store，不带 key
+ * - GitHub Release 包：`npm run zip:github`（GITHUB_BUILD=1），构建到 .output/chrome-mv3-github。
+ *   代码、名字、图标和商店包相同，另外带上 EXTENSION_KEY，让用户"加载已解压的扩展程序"后的扩展 ID
+ *   和商店版一致。平时由 .github/workflows/release.yml 在推送 v* tag 时构建
+ * - 开发版：`npm run dev` / `npm run build`，构建到 .output/chrome-mv3。名字带 "(Dev)"、
+ *   图标换成蓝色封面（src/assets/icon-dev/，由 scripts/render-icons.sh 导出），
+ *   和从商店安装的正式版装在同一个 Chrome 里时一眼能分清
  */
 const FOR_STORE = process.env.STORE_BUILD === '1';
+const FOR_GITHUB = process.env.GITHUB_BUILD === '1';
+const OFFICIAL = FOR_STORE || FOR_GITHUB;
 
 /**
  * 构建时从 .env.local 读取（见 .env.example 和 docs/sync.md）：
@@ -29,7 +35,7 @@ const FOR_STORE = process.env.STORE_BUILD === '1';
  */
 export default defineConfig({
   srcDir: 'src',
-  outDirTemplate: `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}${FOR_STORE ? '-store' : ''}`,
+  outDirTemplate: `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}${FOR_STORE ? '-store' : FOR_GITHUB ? '-github' : ''}`,
   hooks: {
     'build:publicAssets': (_wxt, files) => {
       const root = resolve('node_modules/pdfjs-dist');
@@ -38,7 +44,7 @@ export default defineConfig({
           files.push({ absoluteSrc: join(root, dir, file), relativeDest: `pdfjs/${dir}/${file}` });
         }
       }
-      if (!FOR_STORE) {
+      if (!OFFICIAL) {
         for (const file of files) {
           const icon = /^icon\/(\d+\.png)$/.exec(file.relativeDest);
           if (icon && 'absoluteSrc' in file) file.absoluteSrc = resolve('src/assets/icon-dev', icon[1]);
@@ -49,8 +55,9 @@ export default defineConfig({
   manifest: () => {
     const key = process.env.EXTENSION_KEY?.trim();
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+    if (FOR_GITHUB && !key) throw new Error('GITHUB_BUILD=1 需要 EXTENSION_KEY（商店公钥），否则扩展 ID 会和商店版不同');
     return {
-      name: FOR_STORE ? 'arXiv HTML Helper' : 'arXiv HTML Helper (Dev)',
+      name: OFFICIAL ? 'arXiv HTML Helper' : 'arXiv HTML Helper (Dev)',
       description: '在 arXiv HTML 页面上划线、高亮、做笔记，支持沉浸式翻译 / 陪读蛙的译文。',
       permissions: ['storage', 'unlimitedStorage', 'sidePanel', 'alarms', ...(clientId ? ['identity'] : [])],
       // 论文库从 arXiv API 获取标题和作者

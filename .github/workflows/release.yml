@@ -1,0 +1,70 @@
+# 推送 v* tag 时构建 GitHub Release 包（代码与商店包相同，另带 key，扩展 ID 与商店版一致）并创建 Release。
+# 加这个工作流之前打的 tag（如 v0.1.0）可以在 Actions → Release → Run workflow 手动发布
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 要发布的 tag，如 v0.1.0
+        required: true
+permissions:
+  contents: write
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  # Chrome 应用商店分配的扩展公钥。它是公开信息（商店安装的扩展 manifest 里也有），写进 manifest 的 key 后，
+  # 用户"加载已解压的扩展程序"时扩展 ID 固定为商店版的 ID
+  EXTENSION_KEY: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvzm+crS6Y4iElCeBkaORxmXyqrPXsM7W5pIpJq4tlggrOfZag/7PsrcJIkZmbixxWHWP0STCIC4Qw+Y3oyJA2t/U+v7aWXeP1nrEq07etWgnGfLv4FFX4OBcS//Iv4agty+UF/IQsxamG0rv1CJIFqrLdp6jYkPUEpP5zrS5jwA2mlMSBqwTTA1Wj1zmkehz/N5NEsIRiJUSXgjTxt+HX/xFm2TG/cJzor2DZAMfdflTthZn1MYkLYUAAYr6QtBRMZTQjQNLX3o94FEwAimdhu4Z8bTlFzgC/Zs8G7sRbaNc2G86BAfHaVdmnVongVNoAX5Al3F4cCtKBZnpJ3fABQIDAQAB
+  EXTENSION_ID: hckjdjhkldddjpaecpkpicfmpfggpfie
+  # 和商店包保持一致：只有在仓库变量里设置了才启用 Google Drive 同步
+  GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+      - name: 检查 tag 与 package.json 的版本一致
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "v$version" ]; then echo "::error::tag $TAG 与 package.json 的版本 $version 不一致"; exit 1; fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - run: npm ci
+      - run: npm test
+      # 直接调用 wxt 而不是 npm run zip:github：v0.1.0 的 package.json 里还没有这个脚本，
+      # 那时的 wxt.config.ts 不设 STORE_BUILD 就是带 key 的正式版，结果相同
+      - name: 打包
+        run: |
+          GITHUB_BUILD=1 npx wxt zip
+          cp .output/*-chrome.zip "arxiv-html-helper-$VERSION.zip"
+      - name: 检查扩展 ID、名字和版本
+        run: |
+          unzip -p "arxiv-html-helper-$VERSION.zip" manifest.json | node -e '
+            const m = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const hash = require("crypto").createHash("sha256").update(Buffer.from(m.key ?? "", "base64")).digest("hex");
+            const id = [...hash.slice(0, 32)].map((c) => String.fromCharCode(97 + parseInt(c, 16))).join("");
+            console.log(`${m.name} ${m.version} ${id}`);
+            if (id !== process.env.EXTENSION_ID || m.name !== "arXiv HTML Helper" || m.version !== process.env.VERSION) process.exit(1);
+          '
+      - name: 创建 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'EOF'
+          **推荐从 [Chrome 应用商店](https://chromewebstore.google.com/detail/hckjdjhkldddjpaecpkpicfmpfggpfie) 安装**，可以自动更新。访问不了商店时，用下面 Assets 里的 zip 安装：
+
+          1. 下载 `arxiv-html-helper-*.zip`，解压到一个固定的文件夹（之后不要删除或移动）
+          2. 打开 `chrome://extensions`，开启右上角的"开发者模式"
+          3. 点"加载已解压的扩展程序"，选择这个文件夹
+
+          这个包和商店版代码相同、扩展 ID 相同，但不会自动更新。升级时清空原文件夹、解压新版本进去，再在 `chrome://extensions` 点扩展卡片上的刷新按钮，笔记都会保留（不要点"移除"，移除会删掉扩展的数据）。详见 [README](https://github.com/${{ github.repository }}#从-github-安装)。
+          EOF
+          gh release create "$TAG" "arxiv-html-helper-$VERSION.zip" --verify-tag --title "$TAG" --notes-file notes.md --generate-notes
