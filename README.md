@@ -14,6 +14,8 @@ npm run zip      # 打包上传 Chrome 应用商店（不含 manifest 的 key）
 npm test
 ```
 
+`dev` 和 `build` 出的是开发版：名字带 "(Dev)"、图标是蓝色封面，和商店安装的正式版（红色封面）装在一起也分得清。只有 `zip` 出的是正式版，构建到单独的 `.output/chrome-mv3-store`，不影响本地加载的 `.output/chrome-mv3`。
+
 构建配置放在 `.env.local`（参照 `.env.example`）：`EXTENSION_KEY` 用来固定扩展 ID，`GOOGLE_CLIENT_ID` 用来启用 Google Drive 同步。两项都可以不填，详见 [docs/sync.md](docs/sync.md)。
 
 - 选中文字后会弹出工具栏：点颜色直接高亮，点"笔记"高亮并打开编辑框
@@ -73,7 +75,7 @@ src/
   entrypoints/ WXT 入口：content、background、sidepanel、library（论文库页，含导入 PDF 的界面）
 scripts/capture-dom.js   在真实页面上抓取翻译插件的 DOM，用于核对选择器
 scripts/mineru-to-html.ts  把 MinerU 导出的 Markdown 转成 HTML 文件（npm run mineru）
-scripts/render-icons.sh    把 src/assets/icon.svg 导出为扩展图标（public/icon/）和主页图标
+scripts/render-icons.sh    把 src/assets/icon.svg 导出为扩展图标（public/icon/）、开发版图标（src/assets/icon-dev/）和主页图标
 site/                      项目主页和隐私政策，推送后由 GitHub Actions 部署到 GitHub Pages
 ```
 

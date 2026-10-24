@@ -13,6 +13,14 @@ const PDFJS_DATA: [dir: string, keep: (file: string) => boolean][] = [
 ];
 
 /**
+ * 只有 `npm run zip`（STORE_BUILD=1）打的是商店包；`npm run dev` / `npm run build` 都是开发版，
+ * 名字带 "(Dev)"、图标换成蓝色封面（src/assets/icon-dev/，由 scripts/render-icons.sh 导出），
+ * 和从商店安装的正式版装在同一个 Chrome 里时一眼能分清。商店包单独构建到 .output/chrome-mv3-store，
+ * 不会覆盖本地加载的 .output/chrome-mv3
+ */
+const FOR_STORE = process.env.STORE_BUILD === '1';
+
+/**
  * 构建时从 .env.local 读取（见 .env.example 和 docs/sync.md）：
  * - EXTENSION_KEY：Chrome 应用商店给的公钥。本地"加载已解压的扩展程序"时让扩展 ID 与商店版一致，
  *   这样 Google OAuth 客户端两边通用，从本地版换成商店版时数据也还在。商店不接受带 key 的包，
@@ -21,6 +29,7 @@ const PDFJS_DATA: [dir: string, keep: (file: string) => boolean][] = [
  */
 export default defineConfig({
   srcDir: 'src',
+  outDirTemplate: `{{browser}}-mv{{manifestVersion}}{{modeSuffix}}${FOR_STORE ? '-store' : ''}`,
   hooks: {
     'build:publicAssets': (_wxt, files) => {
       const root = resolve('node_modules/pdfjs-dist');
@@ -29,14 +38,19 @@ export default defineConfig({
           files.push({ absoluteSrc: join(root, dir, file), relativeDest: `pdfjs/${dir}/${file}` });
         }
       }
+      if (!FOR_STORE) {
+        for (const file of files) {
+          const icon = /^icon\/(\d+\.png)$/.exec(file.relativeDest);
+          if (icon && 'absoluteSrc' in file) file.absoluteSrc = resolve('src/assets/icon-dev', icon[1]);
+        }
+      }
     },
   },
   manifest: () => {
     const key = process.env.EXTENSION_KEY?.trim();
     const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
-    const forStore = process.env.STORE_BUILD === '1';
     return {
-      name: 'arXiv HTML Helper',
+      name: FOR_STORE ? 'arXiv HTML Helper' : 'arXiv HTML Helper (Dev)',
       description: '在 arXiv HTML 页面上划线、高亮、做笔记，支持沉浸式翻译 / 陪读蛙的译文。',
       permissions: ['storage', 'unlimitedStorage', 'sidePanel', 'alarms', ...(clientId ? ['identity'] : [])],
       // 论文库从 arXiv API 获取标题和作者
@@ -47,7 +61,7 @@ export default defineConfig({
       // 导入 PDF：把生成的论文页面保存为本地文件（导入时才申请）
       optional_permissions: ['downloads'],
       ...(clientId ? { oauth2: { client_id: clientId, scopes: ['https://www.googleapis.com/auth/drive.appdata'] } } : {}),
-      ...(key && !forStore ? { key } : {}),
+      ...(key && !FOR_STORE ? { key } : {}),
       action: { default_title: '打开笔记侧边栏' },
     };
   },
