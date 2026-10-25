@@ -170,7 +170,7 @@ function emptyView(): HTMLElement {
 }
 
 /** 列表中的一项：标题，作者和元信息，最后一行是分组和评分；操作按钮悬停时显示 */
-function paperRow({ entry, matched }: SearchResult, terms: string[]): HTMLElement {
+function paperRow({ entry, matched, noteHit }: SearchResult, terms: string[]): HTMLElement {
   const row = el('article', 'paper');
   const all = sortByDocumentOrder(entry.annotations);
 
@@ -221,6 +221,7 @@ function paperRow({ entry, matched }: SearchResult, terms: string[]): HTMLElemen
   }
   // 关键词命中划线或笔记时，说明这篇论文为什么被搜出来
   if (matched.length) meta.append(el('span', 'hit-count', `${matched.length} 条划线匹配`));
+  if (noteHit) meta.append(el('span', 'hit-count', '论文笔记匹配'));
   text.append(meta);
 
   const actions = el('div', 'paper-actions');

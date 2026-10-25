@@ -1,4 +1,5 @@
 import type { Group, Shelf } from './groups';
+import type { PaperNote } from './library';
 import type { PaperMeta } from './paper';
 
 /**
@@ -66,6 +67,9 @@ export const metaDeleted = (t: PaperTomb, m: PaperMeta) => paperAt(t) >= m.lastO
 
 /** 移除论文之后重新加入或改过分组的，保留 */
 export const shelfDeleted = (t: PaperTomb, s: Shelf) => paperAt(t) >= Math.max(s.addedAt, s.updatedAt);
+
+/** 移除论文之后又改过的论文笔记，保留 */
+export const noteDeleted = (t: PaperTomb, n: PaperNote) => paperAt(t) >= n.updatedAt;
 
 export const groupDeleted = (tombs: GroupTombs, g: Group) => (tombs[g.id]?.at ?? -1) >= g.updatedAt;
 

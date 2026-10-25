@@ -101,7 +101,7 @@ describe('mergeSync：论文', () => {
     const a = { 'tomb:A': { paper: 50, annotations: {} } };
     const b = { 'paper:A': [ann('x', 'A', { updatedAt: 40 })], 'meta:A': meta('A', { lastOpenedAt: 45 }), 'shelf:A': shelf([]) };
     const m = merge(a, b);
-    expect(m.papers.get('A')).toEqual({ id: 'A', meta: null, shelf: null, annotations: [], tomb: { paper: 50, annotations: {} } });
+    expect(m.papers.get('A')).toEqual({ id: 'A', meta: null, shelf: null, annotations: [], note: null, tomb: { paper: 50, annotations: {} } });
   });
 
   it('移除之后重新打开的论文：新的元数据、分组和笔记保留', () => {
@@ -163,6 +163,31 @@ describe('mergeSync：论文', () => {
   });
 });
 
+describe('mergeSync：论文笔记', () => {
+  it('取修改时间较新的一份，包括清空', () => {
+    const note = (text: string, updatedAt: number) => ({ 'meta:A': meta('A'), 'note:A': { text, updatedAt } });
+    expect(merge(note('旧', 1), note('新', 2)).papers.get('A')!.note).toEqual({ text: '新', updatedAt: 2 });
+    expect(merge(note('新', 2), note('旧', 1)).papers.get('A')!.note).toEqual({ text: '新', updatedAt: 2 });
+    expect(merge(note('内容', 1), note('', 2)).papers.get('A')!.note).toEqual({ text: '', updatedAt: 2 });
+  });
+
+  it('从论文库移除时一起删掉；移除之后又改过的保留', () => {
+    const removed = { 'tomb:A': { paper: 50, annotations: {} } };
+    expect(merge(removed, { 'meta:A': meta('A'), 'note:A': { text: '旧', updatedAt: 40 } }).papers.get('A')!.note).toBeNull();
+    expect(merge(removed, { 'note:A': { text: '新', updatedAt: 60 } }).papers.get('A')!.note).toEqual({ text: '新', updatedAt: 60 });
+  });
+
+  it('写进同步文件，解析回来不变；本地只写有变化的论文笔记', () => {
+    const local = { 'meta:A': meta('A'), 'note:A': { text: '本地', updatedAt: 1 } };
+    const remote = { 'meta:A': meta('A'), 'note:A': { text: '远端', updatedAt: 2 } };
+    const file = toSyncFile(data(remote), '0.1.0');
+    expect(file.papers[0]!.note).toEqual({ text: '远端', updatedAt: 2 });
+    expect(fingerprint(fromBackup(parseBackup(JSON.stringify(file))))).toBe(fingerprint(data(remote)));
+    const plan = planLocalWrites(local, merge(local, remote));
+    expect(plan.set).toEqual({ 'note:A': { text: '远端', updatedAt: 2 } });
+  });
+});
+
 describe('mergeSync：分组', () => {
   it('改名、改颜色取较新的；删除会同步（包括旧版本的「待读」）', () => {
     const a = { groups: [group('g', 'RL 新名', { updatedAt: 9 }), group('h', 'Vision')], 'groups-deleted': { 'to-read': { at: 99 } } };
@@ -195,6 +220,7 @@ describe('mergeSync 的性质', () => {
     'paper:A': [ann('x', 'A', { note: '1', updatedAt: 3 }), ann('y', 'A')],
     'meta:A': meta('A'),
     'shelf:A': shelf(['g'], { updatedAt: 4 }),
+    'note:A': { text: 'a', updatedAt: 3 },
     groups: [group('g', 'RL'), group('k', 'Same', { createdAt: 9 })],
     'tomb:B': { annotations: { b1: 5 } },
   };
@@ -202,6 +228,7 @@ describe('mergeSync 的性质', () => {
     'paper:A': [ann('x', 'A', { note: '2', updatedAt: 4 })],
     'paper:B': [ann('b1', 'B', { updatedAt: 2 }), ann('b2', 'B')],
     'meta:B': meta('B', { source: 'api' }),
+    'note:A': { text: 'b', updatedAt: 3 },
     groups: [group('g', 'RL2', { updatedAt: 3 }), group('j', 'same', { createdAt: 2 })],
     'groups-deleted': { z: { at: 1 } },
   };

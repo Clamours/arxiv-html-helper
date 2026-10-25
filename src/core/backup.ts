@@ -11,13 +11,14 @@ import {
   type Group,
   type Shelf,
 } from './groups';
-import { groupLibrary, META_PREFIX, PAPER_PREFIX, shelfFor } from './library';
+import { groupLibrary, META_PREFIX, NOTE_PREFIX, PAPER_PREFIX, shelfFor, toPaperNote, type PaperNote } from './library';
 import { API_DETAILS, type PaperDoc, type PaperMeta } from './paper';
 import {
   annotationDeleted,
   DELETED_GROUPS_KEY,
   groupDeleted,
   metaDeleted,
+  noteDeleted,
   reviveTime,
   shelfDeleted,
   TOMB_PREFIX,
@@ -36,7 +37,7 @@ import { COLORS, type Annotation, type Segment } from './types';
  *
  * 版本：1 只有笔记和元数据；2 增加分组（groups）和每篇论文的 shelf，并收录没有笔记的论文；
  * 3 增加删除记录（可选，只有云同步的文件有）。之后加的可选字段旧版本的插件导入时会忽略，所以没有提高版本号：
- * 导入论文的页面（docs，只有手动导出的备份有）、元数据里 arXiv API 的摘要等。
+ * 导入论文的页面（docs，只有手动导出的备份有）、论文笔记（papers[].note）、元数据里 arXiv API 的摘要等。
  */
 
 export const BACKUP_FORMAT = 'arxiv-html-notes-backup';
@@ -48,6 +49,8 @@ export interface BackupPaper {
   annotations: Annotation[];
   /** 版本 1 的备份没有 */
   shelf: Shelf | null;
+  /** 论文笔记；没写过时没有 */
+  note?: PaperNote;
 }
 
 export interface BackupFile {
@@ -84,7 +87,7 @@ export function createBackup(
   docs: StoredDoc[] = [],
 ): BackupFile {
   const papers: BackupPaper[] = groupLibrary(all)
-    .map((e) => ({ id: e.id, meta: e.meta, annotations: e.annotations, shelf: e.shelf }))
+    .map((e) => ({ id: e.id, meta: e.meta, annotations: e.annotations, shelf: e.shelf, ...(e.note ? { note: e.note } : {}) }))
     .sort((a, b) => a.id.localeCompare(b.id));
   const ids = new Set(papers.map((p) => p.id));
   const kept = docs.filter((d) => ids.has(d.id)).sort((a, b) => a.id.localeCompare(b.id));
@@ -151,7 +154,8 @@ export function parseBackup(text: string): ParsedBackup {
       if (ok) annotations.push(ok);
       else invalid++;
     }
-    papers.push({ id, meta: toMeta(p.meta, id), annotations, shelf: toShelf(p.shelf) });
+    const note = toPaperNote(p.note);
+    papers.push({ id, meta: toMeta(p.meta, id), annotations, shelf: toShelf(p.shelf), ...(note ? { note } : {}) });
   }
   const groups = Array.isArray(data.groups) ? data.groups.map(toGroup).filter((g): g is Group => !!g) : [];
   const ids = new Set(papers.map((p) => p.id));
@@ -252,6 +256,8 @@ export interface ImportSummary {
   newGroups: number;
   /** 分组或标记有变化的论文数 */
   shelvesChanged: number;
+  /** 新增或更新的论文笔记数 */
+  paperNotes: number;
 }
 
 export interface ImportPlan {
@@ -270,7 +276,7 @@ export function planImport(current: Record<string, unknown>, parsed: ParsedBacku
   const writes: Record<string, unknown> = {};
   const summary: ImportSummary = {
     papers: 0, newPapers: 0, added: 0, updated: 0, unchanged: 0, keptLocal: 0, invalid: parsed.invalid,
-    newGroups: 0, shelvesChanged: 0,
+    newGroups: 0, shelvesChanged: 0, paperNotes: 0,
   };
 
   const groupMerge = mergeGroups(normalizeGroups(current[GROUPS_KEY]), parsed.groups);
@@ -296,12 +302,13 @@ export function planImport(current: Record<string, unknown>, parsed: ParsedBacku
       meta: betterMeta(prev.meta, p.meta),
       annotations: [...prev.annotations, ...p.annotations],
       shelf: prev.shelf && p.shelf ? mergeShelves(prev.shelf, p.shelf) : (prev.shelf ?? p.shelf),
+      note: newerNote(prev.note, p.note),
     } : p);
   }
 
   const localIds = new Set(groupLibrary(current).map((e) => e.id));
   for (const paper of byId.values()) {
-    if (!paper.annotations.length && !paper.meta && !paper.shelf) continue;
+    if (!paper.annotations.length && !paper.meta && !paper.shelf && !paper.note?.text) continue;
     summary.papers++;
     const isNew = !localIds.has(paper.id);
     if (isNew) summary.newPapers++;
@@ -356,9 +363,20 @@ export function planImport(current: Record<string, unknown>, parsed: ParsedBacku
     if (meta && JSON.stringify(meta) !== JSON.stringify(localMeta)) {
       writes[metaKey] = metaDeleted(tomb, meta) ? { ...meta, lastOpenedAt: reviveTime(removedAt, now) } : meta;
     }
+
+    // 论文笔记：修改时间较新的一份胜出；两边内容相同时不写
+    const localNote = toPaperNote(current[NOTE_PREFIX + paper.id]);
+    const note = paper.note;
+    if (note && (localNote ? note.updatedAt > localNote.updatedAt && note.text !== localNote.text : note.text)) {
+      writes[NOTE_PREFIX + paper.id] = noteDeleted(tomb, note) ? { ...note, updatedAt: reviveTime(removedAt, now) } : note;
+      summary.paperNotes++;
+    }
   }
   return { writes, summary };
 }
+
+const newerNote = (a: PaperNote | undefined, b: PaperNote | undefined) =>
+  a && b ? (b.updatedAt > a.updatedAt ? b : a) : (a ?? b);
 
 /** API 来源优先于页面提取；都来自 API 时取后获取的一份；其余取最近打开的一份；打开时间取两者较晚者 */
 function betterMeta(a: PaperMeta | null, b: PaperMeta | null): PaperMeta | null {

@@ -1,5 +1,5 @@
 import { browser } from 'wxt/browser';
-import { META_PREFIX, PAPER_PREFIX, shelfFor } from './library';
+import { META_PREFIX, NOTE_PREFIX, PAPER_PREFIX, shelfFor, toPaperNote, type PaperNote } from './library';
 import type { ApiMeta } from './arxiv-api';
 import {
   addGroup,
@@ -18,6 +18,7 @@ import type { Annotation } from './types';
 const keyOf = (paperId: string) => `${PAPER_PREFIX}${paperId}`;
 const metaKeyOf = (paperId: string) => `${META_PREFIX}${paperId}`;
 const shelfKeyOf = (paperId: string) => `${SHELF_PREFIX}${paperId}`;
+const noteKeyOf = (paperId: string) => `${NOTE_PREFIX}${paperId}`;
 const tombKeyOf = (paperId: string) => `${TOMB_PREFIX}${paperId}`;
 
 export async function loadAnnotations(paperId: string): Promise<Annotation[]> {
@@ -119,19 +120,30 @@ export async function recordApiMeta(list: ApiMeta[]): Promise<void> {
   await browser.storage.local.set(next);
 }
 
-/** 从论文库移除：删除一篇论文的全部笔记、元数据和分组，并记下删除时间 */
+/** 从论文库移除：删除一篇论文的全部笔记、元数据、分组和论文笔记，并记下删除时间 */
 export function deletePaper(paperId: string): Promise<void> {
   return serial(async () => {
     // 整篇论文的删除时间覆盖其中各条笔记的删除记录
     const tomb: PaperTomb = { paper: Date.now(), annotations: {} };
     await browser.storage.local.set({ [tombKeyOf(paperId)]: tomb });
-    await browser.storage.local.remove([keyOf(paperId), metaKeyOf(paperId), shelfKeyOf(paperId)]);
+    await browser.storage.local.remove([keyOf(paperId), metaKeyOf(paperId), shelfKeyOf(paperId), noteKeyOf(paperId)]);
+  });
+}
+
+/** 保存论文笔记；内容没变时不写。清空也会写入（见 PaperNote） */
+export function setPaperNote(paperId: string, text: string): Promise<void> {
+  return serial(async () => {
+    const key = noteKeyOf(paperId);
+    const cur = toPaperNote((await browser.storage.local.get(key))[key]);
+    if ((cur?.text ?? '') === text) return;
+    const note: PaperNote = { text, updatedAt: Date.now() };
+    await browser.storage.local.set({ [key]: note });
   });
 }
 
 /** 论文库、分组的任何变化 */
 export function watchLibrary(cb: () => void): () => void {
-  const prefixes = [PAPER_PREFIX, META_PREFIX, SHELF_PREFIX];
+  const prefixes = [PAPER_PREFIX, META_PREFIX, SHELF_PREFIX, NOTE_PREFIX];
   const listener = (changes: Record<string, unknown>, area: string) => {
     if (area === 'local' && Object.keys(changes).some((k) => k === GROUPS_KEY || prefixes.some((p) => k.startsWith(p)))) cb();
   };

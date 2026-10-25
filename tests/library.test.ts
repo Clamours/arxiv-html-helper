@@ -58,6 +58,24 @@ describe('groupLibrary', () => {
     expect(c).toMatchObject({ annotations: [], lastNoteAt: 0, version: 'v2', shelf: { addedAt: 40 } });
     expect(lib.find((e) => e.id === '2404.00004')!.shelf).toEqual({ groups: [], flagged: true, rating: 0, addedAt: 7, updatedAt: 8 });
   });
+
+  it('论文笔记：附在论文上，算进最近笔记时间；清空的论文笔记不单独收录论文', () => {
+    const lib = groupLibrary({
+      'meta:A': meta('A'),
+      'paper:A': [ann({ updatedAt: 5 })],
+      'note:A': { text: '读后总结', updatedAt: 9 },
+      'note:B': { text: '只有论文笔记', updatedAt: 3 },
+      'note:C': { text: '', updatedAt: 4 },
+      'note:D': { text: 1 },
+    });
+    expect(lib.map((e) => e.id).sort()).toEqual(['A', 'B']);
+    const a = lib.find((e) => e.id === 'A')!;
+    expect(a.note).toEqual({ text: '读后总结', updatedAt: 9 });
+    expect(a.lastNoteAt).toBe(9);
+    // 清空过的论文笔记不算"最近笔记"
+    const cleared = groupLibrary({ 'meta:A': meta('A'), 'paper:A': [ann({ updatedAt: 5 })], 'note:A': { text: '', updatedAt: 9 } });
+    expect(cleared[0]!.lastNoteAt).toBe(5);
+  });
 });
 
 describe('排序与搜索', () => {
@@ -67,6 +85,7 @@ describe('排序与搜索', () => {
     'paper:B': [ann({ updatedAt: 7 }), ann({ updatedAt: 2 })],
     'meta:B': meta('B', { title: 'BERT', lastOpenedAt: 10 }),
     'shelf:B': { groups: [], flagged: false, rating: 3, addedAt: 99, updatedAt: 0 },
+    'note:B': { text: 'Masked LM 预训练', updatedAt: 1 },
   });
 
   it.each([
@@ -94,6 +113,12 @@ describe('排序与搜索', () => {
   it('命中笔记内容时返回命中的笔记，只命中标题时不返回', () => {
     expect(searchLibrary(lib, 'self-attention')[0]!.matched).toHaveLength(1);
     expect(searchLibrary(lib, 'BERT')[0]!.matched).toHaveLength(0);
+  });
+
+  it('搜索论文笔记，并标出命中', () => {
+    expect(searchLibrary(lib, 'masked').map((r) => [r.entry.id, r.noteHit])).toEqual([['B', true]]);
+    expect(searchLibrary(lib, 'bert 预训练').map((r) => [r.entry.id, r.noteHit])).toEqual([['B', true]]);
+    expect(searchLibrary(lib, 'bert')[0]!.noteHit).toBe(false);
   });
 });
 

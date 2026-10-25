@@ -150,6 +150,21 @@ describe('planImport', () => {
   });
 });
 
+describe('planImport：论文笔记', () => {
+  it('往返不变；取修改时间较新的一份，内容相同时不写', () => {
+    const backup = { 'meta:A': meta('A'), 'note:A': { text: '备份', updatedAt: 5 }, 'note:B': { text: '只有论文笔记', updatedAt: 2 } };
+    const parsed = roundtrip(backup);
+    expect(parsed.papers.map((p) => [p.id, p.note])).toEqual([['A', { text: '备份', updatedAt: 5 }], ['B', { text: '只有论文笔记', updatedAt: 2 }]]);
+
+    const fresh = planImport({}, parsed);
+    expect(fresh.writes['note:A']).toEqual({ text: '备份', updatedAt: 5 });
+    expect(fresh.summary.paperNotes).toBe(2);
+    expect(planImport({ 'meta:A': meta('A'), 'note:A': { text: '本地', updatedAt: 9 } }, parsed).writes['note:A']).toBeUndefined();
+    expect(planImport({ 'meta:A': meta('A'), 'note:A': { text: '本地', updatedAt: 1 } }, parsed).writes['note:A']).toEqual({ text: '备份', updatedAt: 5 });
+    expect(planImport({ 'meta:A': meta('A'), 'note:A': { text: '备份', updatedAt: 1 } }, parsed).writes['note:A']).toBeUndefined();
+  });
+});
+
 describe('planImport：分组', () => {
   it('论文的分组取并集，标记取较新的；同名分组合并为同一个', () => {
     const local = {
@@ -196,6 +211,7 @@ describe('planImport：恢复已删除的内容', () => {
       'paper:A': [ann('a', 'A', { updatedAt: 5 })],
       'meta:A': meta('A', { lastOpenedAt: 5 }),
       'shelf:A': shelf(['g'], { addedAt: 5, updatedAt: 5 }),
+      'note:A': { text: '总结', updatedAt: 5 },
       'paper:B': [ann('b', 'B', { updatedAt: 5 }), ann('b2', 'B', { updatedAt: 5 })],
     };
     const local = {
@@ -208,6 +224,7 @@ describe('planImport：恢复已删除的内容', () => {
     expect((w['paper:A'] as Annotation[])[0]!.updatedAt).toBe(1000);
     expect((w['meta:A'] as PaperMeta).lastOpenedAt).toBe(1000);
     expect((w['shelf:A'] as Shelf).updatedAt).toBe(1000);
+    expect(w['note:A']).toEqual({ text: '总结', updatedAt: 1000 });
     expect(Object.fromEntries((w['paper:B'] as Annotation[]).map((a) => [a.id, a.updatedAt]))).toEqual({ b: 1000, b2: 5 });
     expect((w.groups as Group[]).find((g) => g.id === 'g')!.updatedAt).toBe(1000);
   });

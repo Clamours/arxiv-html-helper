@@ -25,7 +25,7 @@ export function initBackupUi(): { setHasData(has: boolean): void } {
   menuBtn.addEventListener('click', () => {
     const box = el('div', 'menu');
     box.setAttribute('role', 'menu');
-    const exportItem = menuItem(DOWNLOAD_ICON, '导出备份', '把全部论文、划线、笔记、分组和导入论文的页面保存为一个 JSON 文件，用于备份或迁移到其他电脑', () => {
+    const exportItem = menuItem(DOWNLOAD_ICON, '导出备份', '把全部论文、划线、笔记、论文笔记、分组和导入论文的页面保存为一个 JSON 文件，用于备份或迁移到其他电脑', () => {
       closePopover();
       void exportBackup();
     });
@@ -85,13 +85,14 @@ export function initBackupUi(): { setHasData(has: boolean): void } {
       // 先存页面：论文出现在论文库里时，页面已经在了
       const pages = await restoreDocs(await missingDocs(parsed.docs));
       await writeMany(fresh.writes);
-      const { added, updated, newPapers, newGroups, shelvesChanged } = fresh.summary;
+      const { added, updated, newPapers, newGroups, shelvesChanged, paperNotes } = fresh.summary;
       const parts = [
         newPapers && `新增论文 ${newPapers} 篇`,
         added && `新增划线 ${added} 条`,
         updated && `更新划线 ${updated} 条`,
         newGroups && `新增分组 ${newGroups} 个`,
         shelvesChanged && `${shelvesChanged} 篇论文的分组有变化`,
+        paperNotes && `论文笔记 ${paperNotes} 篇`,
         pages.restored && `恢复论文页面 ${pages.restored} 篇`,
         pages.damaged && `${pages.damaged} 篇页面已损坏，已跳过`,
       ].filter(Boolean);
@@ -179,6 +180,7 @@ function summaryRows(s: ImportSummary): [string, number, boolean][] {
   ];
   if (s.newGroups) rows.push(['新增分组', s.newGroups, false]);
   if (s.shelvesChanged) rows.push(['分组或标记有变化的论文', s.shelvesChanged, false]);
+  if (s.paperNotes) rows.push(['新增或更新的论文笔记', s.paperNotes, false]);
   if (s.keptLocal) rows.push(['保留本地（本地的更新）', s.keptLocal, true]);
   if (s.unchanged) rows.push(['已存在，无需改动', s.unchanged, true]);
   if (s.invalid) rows.push(['格式有误，已跳过', s.invalid, true]);

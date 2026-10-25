@@ -1,6 +1,6 @@
 import { BACKUP_FORMAT, BACKUP_VERSION, toAnnotation, toMeta, type BackupFile, type ParsedBackup } from './backup';
 import { GROUPS_KEY, normalizeGroups, SHELF_PREFIX, toShelf, type Group, type Shelf } from './groups';
-import { META_PREFIX, PAPER_PREFIX } from './library';
+import { META_PREFIX, NOTE_PREFIX, PAPER_PREFIX, toPaperNote, type PaperNote } from './library';
 import { pickDoc, type PaperMeta } from './paper';
 import {
   annotationDeleted,
@@ -9,6 +9,7 @@ import {
   groupDeleted,
   isEmptyTomb,
   metaDeleted,
+  noteDeleted,
   shelfDeleted,
   TOMB_PREFIX,
   TOMB_TTL,
@@ -24,7 +25,7 @@ import type { Annotation } from './types';
  * 下载 → 与本地合并 → 把合并结果写回本地和云端。这里只放纯逻辑，读写 storage 和云端在 src/sync/。
  *
  * 合并规则（两边对称，合并结果与先后顺序无关）：
- * - 笔记、分组定义、论文的分组和标记：各自按修改时间，较新的一份胜出
+ * - 笔记、论文笔记、分组定义、论文的分组和标记：各自按修改时间，较新的一份胜出
  * - 元数据：API 来源优先，都来自 API 时取后获取的；打开时间取较晚的
  * - 删除：删除时间不早于修改时间的视为已删除，见 tombstones.ts
  * - 两台电脑各自新建的同名分组合并为一个：保留先建的，论文上的另一个 id 换成它
@@ -36,6 +37,7 @@ export interface SyncPaper {
   /** 没有记录时为 null（论文库按默认值显示） */
   shelf: Shelf | null;
   annotations: Annotation[];
+  note: PaperNote | null;
   tomb: PaperTomb;
 }
 
@@ -47,7 +49,7 @@ export interface SyncData {
 
 export const emptySyncData = (): SyncData => ({ groups: normalizeGroups([]), deletedGroups: {}, papers: new Map() });
 
-const PREFIXES = [PAPER_PREFIX, META_PREFIX, SHELF_PREFIX, TOMB_PREFIX];
+const PREFIXES = [PAPER_PREFIX, META_PREFIX, SHELF_PREFIX, NOTE_PREFIX, TOMB_PREFIX];
 
 /** 需要同步的 storage 键 */
 export const isSyncedKey = (key: string) =>
@@ -67,6 +69,7 @@ export function fromStorage(all: Record<string, unknown>): SyncData {
       meta: toMeta(all[META_PREFIX + id], id),
       shelf: toShelf(all[SHELF_PREFIX + id]),
       annotations: Array.isArray(list) ? list.map((a) => toAnnotation(a, id)).filter((a): a is Annotation => !!a) : [],
+      note: toPaperNote(all[NOTE_PREFIX + id]),
       tomb: toPaperTomb(all[TOMB_PREFIX + id]),
     };
     if (!isEmptyPaper(p)) papers.set(id, p);
@@ -81,8 +84,10 @@ export function fromBackup(parsed: ParsedBackup): SyncData {
     const prev = papers.get(p.id);
     papers.set(p.id, prev ? mergePaper(prev, p) : p);
   };
-  for (const p of parsed.papers) add({ id: p.id, meta: p.meta, shelf: p.shelf, annotations: p.annotations, tomb: emptyTomb() });
-  for (const [id, tomb] of Object.entries(parsed.deleted.papers)) add({ id, meta: null, shelf: null, annotations: [], tomb });
+  for (const p of parsed.papers) {
+    add({ id: p.id, meta: p.meta, shelf: p.shelf, annotations: p.annotations, note: p.note ?? null, tomb: emptyTomb() });
+  }
+  for (const [id, tomb] of Object.entries(parsed.deleted.papers)) add({ id, meta: null, shelf: null, annotations: [], note: null, tomb });
   return { groups: normalizeGroups(parsed.groups), deletedGroups: parsed.deleted.groups, papers };
 }
 
@@ -98,8 +103,14 @@ export function toSyncFile(d: SyncData, extensionVersion: string, now = new Date
     extensionVersion,
     groups: normalizeGroups(d.groups),
     papers: papers
-      .filter((p) => p.meta || p.shelf || p.annotations.length)
-      .map((p) => ({ id: p.id, meta: p.meta, annotations: sortAnnotations(p.annotations), shelf: p.shelf })),
+      .filter((p) => p.meta || p.shelf || p.annotations.length || p.note)
+      .map((p) => ({
+        id: p.id,
+        meta: p.meta,
+        annotations: sortAnnotations(p.annotations),
+        shelf: p.shelf,
+        ...(p.note ? { note: p.note } : {}),
+      })),
     deleted: { papers: tombs, groups: d.deletedGroups },
   };
 }
@@ -160,12 +171,13 @@ export function mergeSync(a: SyncData, b: SyncData, now = Date.now()): SyncData 
     const p = pa && pb ? mergePaper(pa, pb) : (pa ?? pb)!;
     const annotations = p.annotations.filter((x) => !annotationDeleted(p.tomb, x));
     const meta = p.meta && !metaDeleted(p.tomb, p.meta) ? p.meta : null;
+    const note = p.note && !noteDeleted(p.tomb, p.note) ? p.note : null;
     let shelf = p.shelf && !shelfDeleted(p.tomb, p.shelf) ? p.shelf : null;
     if (shelf) {
       const ids = [...new Set(shelf.groups.map(resolve).filter((g): g is string => !!g))];
       if (!sameSet(ids, shelf.groups)) shelf = { ...shelf, groups: ids };
     }
-    const next: SyncPaper = { id, meta, shelf, annotations, tomb: pruneTomb(p.tomb, now) };
+    const next: SyncPaper = { id, meta, shelf, annotations, note, tomb: pruneTomb(p.tomb, now) };
     if (!isEmptyPaper(next)) papers.set(id, next);
   }
 
@@ -188,6 +200,7 @@ function mergePaper(a: SyncPaper, b: SyncPaper): SyncPaper {
     meta: mergeMeta(a.meta, b.meta),
     shelf: mergeShelf(a.shelf, b.shelf),
     annotations: sortAnnotations([...anns.values()]),
+    note: a.note && b.note ? newer(a.note, b.note, (n) => n.updatedAt) : (a.note ?? b.note),
     tomb,
   };
 }
@@ -248,7 +261,7 @@ function newer<T>(a: T, b: T, time: (x: T) => number): T {
   return stableStringify(a) >= stableStringify(b) ? a : b;
 }
 
-const isEmptyPaper = (p: SyncPaper) => !p.meta && !p.shelf && !p.annotations.length && isEmptyTomb(p.tomb);
+const isEmptyPaper = (p: SyncPaper) => !p.meta && !p.shelf && !p.annotations.length && !p.note && isEmptyTomb(p.tomb);
 
 const sortAnnotations = (list: Annotation[]) => [...list].sort((a, b) => a.createdAt - b.createdAt || cmp(a.id, b.id));
 
@@ -275,6 +288,7 @@ function canonicalPaper(p: SyncPaper) {
     meta: p.meta,
     shelf: canonicalShelf(p.shelf),
     annotations: [...p.annotations].sort((a, b) => cmp(a.id, b.id)),
+    note: p.note,
     tomb: p.tomb,
   };
 }
@@ -324,6 +338,7 @@ export function planLocalWrites(all: Record<string, unknown>, merged: SyncData):
       else if (PAPER_PREFIX + id in all) plan.remove.push(PAPER_PREFIX + id);
     }
     put(META_PREFIX + id, l?.meta ?? null, m?.meta ?? null);
+    put(NOTE_PREFIX + id, l?.note ?? null, m?.note ?? null);
     if (stableStringify(canonicalShelf(l?.shelf ?? null)) !== stableStringify(canonicalShelf(m?.shelf ?? null))) {
       put(SHELF_PREFIX + id, l?.shelf ?? null, m?.shelf ?? null);
     }

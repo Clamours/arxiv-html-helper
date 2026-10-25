@@ -3,13 +3,30 @@ import { isImportedId, paperUrl, type PaperMeta } from './paper';
 import type { Annotation } from './types';
 
 /**
- * 论文库：由 storage 里的 `paper:<id>`（笔记）、`meta:<id>`（标题等）和
- * `shelf:<id>`（分组、标记，见 groups.ts）拼成。
+ * 论文库：由 storage 里的 `paper:<id>`（笔记）、`meta:<id>`（标题等）、
+ * `shelf:<id>`（分组、标记，见 groups.ts）和 `note:<id>`（论文笔记）拼成。
  * 这里只放纯逻辑，方便单测；读写 storage 在 storage.ts。
  */
 
 export const PAPER_PREFIX = 'paper:';
 export const META_PREFIX = 'meta:';
+export const NOTE_PREFIX = 'note:';
+
+/**
+ * 论文笔记：针对整篇论文、不依附于划线的一段笔记，在论文库的详情面板里编辑。
+ * 清空时保留记录（text 为空串），云同步时清空才会覆盖其他电脑上较旧的内容
+ */
+export interface PaperNote {
+  text: string;
+  updatedAt: number;
+}
+
+export function toPaperNote(x: unknown): PaperNote | null {
+  if (typeof x !== 'object' || x === null) return null;
+  const { text, updatedAt } = x as Record<string, unknown>;
+  if (typeof text !== 'string' || typeof updatedAt !== 'number' || !Number.isFinite(updatedAt)) return null;
+  return { text, updatedAt };
+}
 
 export interface LibraryEntry {
   id: string;
@@ -18,17 +35,19 @@ export interface LibraryEntry {
   annotations: Annotation[];
   /** 没有 shelf 记录时为默认值（不属于任何分组） */
   shelf: Shelf;
+  /** 论文笔记；没写过时为 null */
+  note: PaperNote | null;
   /** 打开论文时用的版本：最近打开的版本，否则最近一条笔记的版本 */
   version: string;
-  /** 最近一次笔记改动时间；没有笔记时为 0 */
+  /** 最近一次笔记（含论文笔记）改动时间；没有笔记时为 0 */
   lastNoteAt: number;
 }
 
-/** 收录浏览过（有 meta）、做过笔记或手动分过组的论文 */
+/** 收录浏览过（有 meta）、做过笔记、写过论文笔记或手动分过组的论文 */
 export function groupLibrary(all: Record<string, unknown>): LibraryEntry[] {
   const ids = new Set<string>();
   for (const key of Object.keys(all)) {
-    for (const prefix of [PAPER_PREFIX, META_PREFIX, SHELF_PREFIX]) {
+    for (const prefix of [PAPER_PREFIX, META_PREFIX, SHELF_PREFIX, NOTE_PREFIX]) {
       if (key.startsWith(prefix) && key.length > prefix.length) ids.add(key.slice(prefix.length));
     }
   }
@@ -38,15 +57,17 @@ export function groupLibrary(all: Record<string, unknown>): LibraryEntry[] {
     const annotations = Array.isArray(value) ? (value as Annotation[]) : [];
     const meta = (all[META_PREFIX + id] as PaperMeta | undefined) ?? null;
     const shelf = toShelf(all[SHELF_PREFIX + id]);
-    if (!annotations.length && !meta && !shelf) continue;
+    const note = toPaperNote(all[NOTE_PREFIX + id]);
+    if (!annotations.length && !meta && !shelf && !note?.text) continue;
     const latest = annotations.length ? annotations.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a)) : null;
     out.push({
       id,
       meta,
       annotations,
       shelf: shelf ?? shelfFor(all, id),
+      note,
       version: meta?.version || latest?.paperVersion || '',
-      lastNoteAt: latest?.updatedAt ?? 0,
+      lastNoteAt: Math.max(latest?.updatedAt ?? 0, note?.text ? note.updatedAt : 0),
     });
   }
   return out;
@@ -118,20 +139,23 @@ export interface SearchResult {
   entry: LibraryEntry;
   /** 命中关键词的笔记；关键词只命中标题/作者/id 时为空 */
   matched: Annotation[];
+  /** 论文笔记命中了关键词 */
+  noteHit: boolean;
 }
 
 /** 不区分大小写，空格分隔的多个关键词需全部命中（可分别命中不同字段） */
 export function searchLibrary(entries: LibraryEntry[], query: string): SearchResult[] {
   const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return entries.map((entry) => ({ entry, matched: [] }));
+  if (!terms.length) return entries.map((entry) => ({ entry, matched: [], noteHit: false }));
   const results: SearchResult[] = [];
   for (const entry of entries) {
     const head = [entry.id, titleOf(entry), ...(entry.meta?.authors ?? [])].join('\n').toLowerCase();
     const texts = entry.annotations.map((a) => `${quoteOf(a)}\n${a.note}`.toLowerCase());
-    const all = `${head}\n${texts.join('\n')}`;
+    const note = entry.note?.text.toLowerCase() ?? '';
+    const all = `${head}\n${texts.join('\n')}\n${note}`;
     if (!terms.every((t) => all.includes(t))) continue;
     const matched = entry.annotations.filter((_, i) => terms.some((t) => texts[i]!.includes(t)));
-    results.push({ entry, matched });
+    results.push({ entry, matched, noteHit: terms.some((t) => note.includes(t)) });
   }
   return results;
 }
