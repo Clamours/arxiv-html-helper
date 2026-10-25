@@ -15,9 +15,11 @@ import {
   type SortKey,
   type View,
 } from '@/core/library';
-import { isImportedId, needsApiMeta, paperUrl } from '@/core/paper';
+import { extractAbstract, isImportedId, needsApiMeta, paperUrl } from '@/core/paper';
 import { deletePaper, readAll, recordApiMeta, setFlagged, watchLibrary } from '@/core/storage';
+import { loadDoc } from '@/imported/db';
 import { initBackupUi } from './backup-ui';
+import { createDetail } from './detail';
 import { initImportUi } from './import-ui';
 import { initSyncUi } from './sync-ui';
 import { createNav, viewLabel } from './nav';
@@ -51,12 +53,23 @@ const backupUi = initBackupUi();
 const importUi = initImportUi();
 initSyncUi();
 const nav = createNav($('nav'), { onSelect: setView });
+const detail = createDetail($('detail'), {
+  onClose: () => select(null),
+  onOpenImported: (entry) => void importUi.open(entry.id),
+  onSelectView: setView,
+  citeButton,
+  flagButton,
+});
 
 const SORT_STORAGE_KEY = 'library-sort';
 const VIEW_STORAGE_KEY = 'library-view';
 let entries: LibraryEntry[] = [];
 let groups: Group[] = [];
 let view: View = 'all';
+/** 详情面板里的论文；面板关闭时为 null */
+let selected: string | null = null;
+/** 列表当前的顺序，用于方向键切换 */
+let shownIds: string[] = [];
 
 try {
   const saved = localStorage.getItem(SORT_STORAGE_KEY);
@@ -89,22 +102,80 @@ function setView(next: View): void {
   scrollTo({ top: 0 });
 }
 
+/** 打开或关闭详情面板；用方向键切换时把这篇论文滚动到可见处 */
+function select(id: string | null, scroll = false): void {
+  selected = id;
+  render();
+  if (scroll && id) list.querySelector(`.paper[data-id="${CSS.escape(id)}"]`)?.scrollIntoView({ block: 'nearest' });
+}
+
+/** 打开论文：arXiv 论文在新标签页打开，和点链接一样；导入的论文在阅读页里打开 */
+function openPaper(entry: LibraryEntry): void {
+  if (isImportedId(entry.id)) {
+    void importUi.open(entry.id);
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = paperUrl(entry.id, entry.version);
+  a.target = '_blank';
+  a.rel = 'noopener';
+  a.click();
+}
+
 // ---- 从 arXiv API 补全标题、作者、摘要等 ----
 /** 本次打开页面已经尝试过的 id，避免 API 查不到的论文反复请求 */
 const attempted = new Set<string>();
+/** 正在获取、获取失败的 id，详情面板据此显示状态 */
+const fetching = new Set<string>();
+const fetchFailed = new Set<string>();
 let fetchStatus = '';
 
 async function backfillMeta(): Promise<void> {
   const ids = entries.filter((e) => !isImportedId(e.id) && needsApiMeta(e.meta) && !attempted.has(e.id)).map((e) => e.id);
   if (!ids.length) return;
-  ids.forEach((id) => attempted.add(id));
+  for (const id of ids) {
+    attempted.add(id);
+    fetching.add(id);
+  }
   fetchStatus = `正在从 arXiv 获取 ${ids.length} 篇论文的信息…`;
   render();
   const { found, failed } = await fetchArxivMeta(ids);
+  const got = new Set(found.map((m) => m.id));
+  for (const id of ids) {
+    fetching.delete(id);
+    if (!got.has(id)) fetchFailed.add(id);
+  }
   fetchStatus = failed ? '部分论文信息获取失败，刷新页面可重试' : '';
   // 写入后 watchLibrary 会触发 refresh 重新渲染
   if (found.length) await recordApiMeta(found);
   else render();
+}
+
+/** 详情面板里的摘要：arXiv 论文来自 arXiv API，导入的论文从本机保存的论文页面里提取 */
+function abstractOf(entry: LibraryEntry): { abstract: string; abstractStatus: string } {
+  if (isImportedId(entry.id)) return { abstract: importedAbstract(entry.id), abstractStatus: '' };
+  const abstract = entry.meta?.abstract ?? '';
+  const status = fetching.has(entry.id) ? '正在从 arXiv 获取…' : fetchFailed.has(entry.id) ? '没能从 arXiv 获取，刷新页面可重试' : '';
+  return { abstract, abstractStatus: abstract ? '' : status };
+}
+
+/** 导入论文的摘要，按论文缓存；先返回空串，读出页面后重新渲染。页面还没同步到本机时，下次渲染再读 */
+const importedAbstracts = new Map<string, string>();
+function importedAbstract(id: string): string {
+  const cached = importedAbstracts.get(id);
+  if (cached !== undefined) return cached;
+  importedAbstracts.set(id, '');
+  void (async () => {
+    const doc = await loadDoc(id).catch(() => null);
+    if (!doc) {
+      importedAbstracts.delete(id);
+      return;
+    }
+    const text = extractAbstract(new DOMParser().parseFromString(doc.html, 'text/html'));
+    importedAbstracts.set(id, text);
+    if (text && selected === id) render();
+  })();
+  return '';
 }
 
 function render(): void {
@@ -112,6 +183,11 @@ function render(): void {
   const fixed: View[] = ['all', 'flagged', 'ungrouped'];
   if (!fixed.includes(view) && !groups.some((g) => groupView(g.id) === view)) view = 'all';
   nav.render({ entries, groups, view });
+
+  // 论文被移除（包括在其他标签页里）时关闭详情面板
+  const current = entries.find((e) => e.id === selected) ?? null;
+  if (!current) selected = null;
+  detail.render(current && { entry: current, groups, ...abstractOf(current) });
 
   const shown = entries.filter((e) => inView(e, view, groups));
   const label = viewLabel(view, groups);
@@ -130,6 +206,7 @@ function render(): void {
 
   const query = search.value.trim();
   const results = searchLibrary(sortLibrary(shown, sort.value as SortKey), query);
+  shownIds = results.map((r) => r.entry.id);
   list.replaceChildren();
   if (!entries.length) {
     list.append(empty(HIGHLIGHTER_ICON, '论文库还是空的', '打开 arxiv.org/html/… 的论文会自动加入论文库，选中文字即可划线'));
@@ -155,9 +232,27 @@ function emptyView(): HTMLElement {
   return empty(TAG_ICON, '这个分组还没有论文', '把鼠标移到论文上，点"+"加入分组，或在论文页的侧边栏里添加');
 }
 
-/** 列表中的一项：标题，作者和元信息，最后一行是分组和评分；操作按钮悬停时显示 */
+const modified = (e: MouseEvent) => e.metaKey || e.ctrlKey || e.shiftKey || e.altKey;
+
+/**
+ * 列表中的一项：标题，作者和元信息，最后一行是分组和评分；操作按钮悬停时显示。
+ * 单击（包括标题）打开详情面板，双击打开论文；⌘ / Ctrl + 单击标题在新标签页打开论文
+ */
 function paperRow({ entry, matched, noteHit }: SearchResult, terms: string[]): HTMLElement {
-  const row = el('article', 'paper');
+  const row = el('article', entry.id === selected ? 'paper selected' : 'paper');
+  row.dataset.id = entry.id;
+  if (entry.id === selected) row.setAttribute('aria-current', 'true');
+  row.addEventListener('click', (e) => {
+    const t = e.target as Element;
+    if (t.closest('button') || (t.closest('a') && modified(e))) return;
+    e.preventDefault(); // 标题链接：单击只打开详情
+    select(entry.id);
+  });
+  row.addEventListener('dblclick', (e) => {
+    if ((e.target as Element).closest('button')) return;
+    getSelection()?.removeAllRanges();
+    openPaper(entry);
+  });
 
   const text = el('div', 'paper-text');
   const h2 = el('h2', '');
@@ -169,6 +264,7 @@ function paperRow({ entry, matched, noteHit }: SearchResult, terms: string[]): H
     // 导入的论文：页面保存在本机，在阅读页里打开
     link.href = '#';
     link.addEventListener('click', (e) => {
+      if (!modified(e)) return;
       e.preventDefault();
       void importUi.open(entry.id);
     });
@@ -359,14 +455,31 @@ function iconButton(label: string, svg: string, onClick: () => void): HTMLButton
 }
 
 search.addEventListener('input', render);
-// "/" 或 ⌘K / Ctrl+K：跳到搜索框
 addEventListener('keydown', (e) => {
-  const typing = (e.target as Element).closest?.('input, textarea, select, [contenteditable]');
-  const hotkey = (e.key === '/' && !typing) || (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey));
-  if (!hotkey || e.isComposing || $<HTMLDialogElement>('dialog').open) return;
-  e.preventDefault();
-  search.focus();
-  search.select();
+  if (e.isComposing || e.defaultPrevented || $<HTMLDialogElement>('dialog').open) return;
+  const target = e.target as Element;
+  const typing = target.closest?.('input, textarea, select, [contenteditable]');
+  // "/" 或 ⌘K / Ctrl+K：跳到搜索框
+  if ((e.key === '/' && !typing) || (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey))) {
+    e.preventDefault();
+    search.focus();
+    search.select();
+    return;
+  }
+  // 详情面板打开时：↑ / ↓ 切换论文，Enter 打开论文，Esc 关闭面板
+  if (!selected || typing || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    select(null);
+  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    const i = shownIds.indexOf(selected);
+    const next = i < 0 ? 0 : Math.min(Math.max(i + (e.key === 'ArrowDown' ? 1 : -1), 0), shownIds.length - 1);
+    if (shownIds[next]) select(shownIds[next]!, true);
+  } else if (e.key === 'Enter' && !target.closest?.('button, a')) {
+    const entry = entries.find((x) => x.id === selected);
+    if (entry) openPaper(entry);
+  }
 });
 sort.addEventListener('change', () => {
   remember(SORT_STORAGE_KEY, sort.value);

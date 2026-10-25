@@ -5,7 +5,7 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { anchorSegment, describeRange } from '../src/core/anchor';
-import { extractMeta } from '../src/core/paper';
+import { extractAbstract, extractMeta } from '../src/core/paper';
 import { renderArticle, tidyTex } from '../src/import/latexml';
 import { allBlocks, parseAlgorithm, parseMinerUMarkdown } from '../src/import/mineru';
 import { detectLang, mineruToHtml } from '../src/import/page';
@@ -268,6 +268,14 @@ describe('渲染', () => {
     const meta = extractMeta(document, { id: 'x', version: '' }, 0);
     expect(meta.title).toBe('A TITLE WITH $x^2$');
     expect(meta.authors).toEqual(['Jane Doe, John Roe']);
+  });
+
+  it('摘要可以从页面提取：公式换成 TeX，多段之间空一行；没有摘要时为空串', () => {
+    expect(extractAbstract(document)).toBe('We study $N_{v}$ tokens.');
+    document.body.replaceChildren(renderArticle(document, parseMinerUMarkdown('# T\n\nAbstract—First 10<sup>6</sup>.\n\nSecond.\n\n## 1 Intro\n\nBody.')));
+    expect(extractAbstract(document)).toBe('First 10^6.\n\nSecond.');
+    document.body.replaceChildren(renderArticle(document, parseMinerUMarkdown('# T\n\n## 1 Intro\n\nBody.')));
+    expect(extractAbstract(document)).toBe('');
   });
 
   it('每个块内随机选区都能按偏移找回', () => {

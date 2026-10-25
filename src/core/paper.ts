@@ -163,10 +163,10 @@ export function absUrl(id: string, version = ''): string {
   return `https://arxiv.org/abs/${id}${version}`;
 }
 
-/** 元素的可读文本：去掉脚注，公式换成 TeX，空白折叠 */
-function cleanText(el: Element): string {
+/** 元素的可读文本：去掉脚注（标题里的上标也当作脚注标记）、drop 选中的元素，公式换成 TeX */
+function cleanText(el: Element, drop = '.ltx_note, .ltx_note_mark, sup, .ltx_tag'): string {
   const c = el.cloneNode(true) as Element;
-  for (const n of c.querySelectorAll('.ltx_note, .ltx_note_mark, sup, .ltx_tag')) n.remove();
+  for (const n of c.querySelectorAll(drop)) n.remove();
   for (const m of c.querySelectorAll('math')) m.replaceWith(`$${m.getAttribute('alttext') ?? m.textContent ?? ''}$`);
   for (const br of c.querySelectorAll('br')) br.replaceWith('\n');
   return c.textContent ?? '';
@@ -182,6 +182,25 @@ export function extractMeta(doc: Document, paper: PaperRef, now = Date.now()): P
     .map((p) => oneLine(cleanText(p).trim().split('\n')[0] ?? ''))
     .filter((s) => s && !s.includes('@'));
   return { id: paper.id, version: paper.version, title, authors, lastOpenedAt: now };
+}
+
+/**
+ * 页面上的摘要，各段之间空一行；没有摘要时为空串。导入论文的页面和 arXiv 页面结构相同，
+ * 但只有 MinerU 识别出了摘要（"Abstract" 标题或 "Abstract—" 开头的段落）时才有
+ */
+export function extractAbstract(doc: Document): string {
+  const abs = doc.querySelector('.ltx_abstract');
+  if (!abs) return '';
+  const paras = Array.from(abs.querySelectorAll('.ltx_p'));
+  return (paras.length ? paras : [abs])
+    .map((p) => {
+      const c = p.cloneNode(true) as Element;
+      // 正文里的上标（如 10<sup>6</sup>）写成 10^6；脚注标记照常去掉
+      for (const s of c.querySelectorAll('sup:not(.ltx_note_mark)')) s.replaceWith(`^${s.textContent ?? ''}`);
+      return oneLine(cleanText(c, '.ltx_note, .ltx_note_mark, .ltx_tag, .ltx_title_abstract'));
+    })
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 /** 从 arXiv HTML / ar5iv 的 URL 解析论文 id；无法识别时退回用路径作 id */

@@ -130,3 +130,13 @@ export const PANEL_CLOSE_ICON = svg(`
 export const QUOTE_ICON = svg(`
   <path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>
   <path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>`);
+
+/** 右上箭头：打开论文 */
+export const ARROW_UP_RIGHT_ICON = svg(`
+  <path d="M7 7h10v10"/>
+  <path d="M7 17 17 7"/>`);
+
+/** 叉：关闭 */
+export const X_ICON = svg(`
+  <path d="M18 6 6 18"/>
+  <path d="m6 6 12 12"/>`);

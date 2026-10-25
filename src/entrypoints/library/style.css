@@ -3,8 +3,11 @@
 body { font-size: 14px; }
 .page { max-width: 880px; margin: 0 auto; padding: 0 40px; }
 
-/* ---- 布局：左侧栏 + 列表 ---- */
+/* ---- 布局：左侧栏 + 列表，打开详情面板时右侧再加一栏（窄屏时面板浮在列表上方，见文末） ---- */
 .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }
+@media (min-width: 1181px) {
+  .layout:has(> .detail:not([hidden])) { grid-template-columns: 260px minmax(0, 1fr) clamp(380px, 32vw, 480px); }
+}
 .content { min-width: 0; }
 
 .nav {
@@ -197,7 +200,6 @@ main.page { padding-top: 8px; padding-bottom: 64px; }
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
 }
 .paper h2 a { color: inherit; text-decoration: none; }
-.paper h2 a:hover { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 
 /* 每项前面一个"·"；整行左移、裁掉左边一截，换行后行首的"·"正好落在被裁掉的地方 */
 .meta {
@@ -240,6 +242,10 @@ main.page { padding-top: 8px; padding-bottom: 64px; }
   width: auto; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 500; white-space: nowrap;
   color: var(--danger); background: var(--danger-bg);
 }
+
+/* 详情面板里正在看的论文 */
+.paper.selected, .paper.selected:hover, .paper.selected:focus-within { background: var(--selected); }
+.paper.selected::before, .paper.selected + .paper::before { opacity: 0; }
 
 /* 搜索命中 */
 .hit {
@@ -356,3 +362,75 @@ dialog[open]::backdrop { animation: fade-in 0.2s ease-out; }
   animation: toast-in 0.22s var(--ease-out);
 }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px) scale(0.98); } }
+
+/* ---- 详情面板：标题、作者、属性、论文笔记、摘要 ---- */
+.detail {
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  border-left: 1px solid var(--line);
+  background: var(--bg);
+  scrollbar-width: thin;
+  animation: detail-in 0.2s var(--ease-out);
+}
+@keyframes detail-in { from { opacity: 0; transform: translateX(12px); } }
+.detail-bar {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 2px;
+  padding: 16px 16px 12px 24px;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: saturate(1.8) blur(16px);
+}
+.detail-bar .spacer { flex: 1; }
+.detail-bar .btn { height: 32px; padding: 0 14px; font-size: 13px; }
+.detail-bar .btn svg { width: 16px; height: 16px; }
+.detail-bar .icon-btn { width: 32px; height: 32px; }
+a.btn { text-decoration: none; }
+
+.detail-head, .detail-section { padding: 0 24px; }
+.detail-title { margin: 8px 0 0; font-size: 20px; line-height: 1.4; font-weight: 600; letter-spacing: -0.015em; overflow-wrap: break-word; }
+.detail-authors { margin: 8px 0 0; color: var(--fg-2); font-size: 13.5px; line-height: 1.6; }
+.detail-authors .link-btn {
+  padding: 0; border: 0; background: none; font: inherit; color: var(--accent); cursor: pointer; white-space: nowrap;
+}
+.detail-authors .link-btn:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* 属性：左边一列标签，右边是值 */
+.props {
+  display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 9px 14px;
+  margin: 20px 0 0; font-size: 13.5px; line-height: 22px;
+}
+.props dt { color: var(--muted); white-space: nowrap; }
+.props dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.props .rating { margin-left: -2px; }
+.detail-groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.ext { color: var(--accent); text-decoration: none; }
+.ext:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.detail-section { margin-top: 28px; }
+.detail-section:last-child { padding-bottom: 48px; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.section-head h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg-2); }
+.save-state { color: var(--muted); font-size: 12px; }
+.paper-note {
+  display: block; width: 100%; min-height: 104px; padding: 10px 12px;
+  resize: none; overflow: hidden;
+  border: 1px solid transparent; border-radius: 10px; background: var(--note-bg);
+  font: inherit; font-size: 14px; line-height: 1.65; color: var(--fg);
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+.paper-note::placeholder { color: var(--muted); }
+.paper-note:focus {
+  outline: none; background: var(--field);
+  border-color: color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 0 0 3px var(--ring);
+}
+.abstract { margin: 0; font-size: 14px; line-height: 1.75; overflow-wrap: break-word; white-space: pre-line; }
+.abstract.pending { color: var(--muted); font-size: 13px; }
+
+/* 窄屏：面板浮在列表上方 */
+@media (max-width: 1180px) {
+  .detail {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 10;
+    width: min(440px, 100vw); height: auto;
+    border-left-color: var(--line-strong);
+    box-shadow: var(--shadow-lg);
+  }
+}
