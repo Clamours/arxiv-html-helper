@@ -40,6 +40,7 @@ import {
   TRASH_ICON,
 } from '@/shared/icons';
 import { markPopoverAnchor } from '@/shared/popover';
+import { ratingStars } from '@/shared/rating';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const list = $('list');
@@ -168,7 +169,7 @@ function emptyView(): HTMLElement {
   return empty(TAG_ICON, '这个分组还没有论文', '把鼠标移到论文上，点"+"加入分组，或在论文页的侧边栏里添加');
 }
 
-/** 列表中的一项：标题，作者和元信息，最后一行是分组；操作按钮悬停时显示 */
+/** 列表中的一项：标题，作者和元信息，最后一行是分组和评分；操作按钮悬停时显示 */
 function paperRow({ entry, matched }: SearchResult, terms: string[]): HTMLElement {
   const row = el('article', 'paper');
   const all = sortByDocumentOrder(entry.annotations);
@@ -220,17 +221,18 @@ function paperRow({ entry, matched }: SearchResult, terms: string[]): HTMLElemen
   }
   // 关键词命中划线或笔记时，说明这篇论文为什么被搜出来
   if (matched.length) meta.append(el('span', 'hit-count', `${matched.length} 条划线匹配`));
-  text.append(meta, groupChips(entry));
+  text.append(meta);
 
   const actions = el('div', 'paper-actions');
   actions.append(flagButton(entry));
   if (all.length) actions.append(copyButton(entry, all));
   actions.append(deleteButton(entry));
-  row.append(text, actions);
+  // 最后一行横跨文字和操作按钮两列，评分和操作按钮右对齐
+  row.append(text, actions, groupChips(entry));
   return row;
 }
 
-/** 最后一行：所属分组（点击查看该分组）和"加入分组"按钮 */
+/** 最后一行：所属分组（点击查看该分组）、"加入分组"按钮，靠右是评分 */
 function groupChips(entry: LibraryEntry): HTMLElement {
   const box = el('div', 'paper-groups');
   const mine = groupsOf(entry, groups);
@@ -242,7 +244,7 @@ function groupChips(entry: LibraryEntry): HTMLElement {
   add.setAttribute('aria-label', '加入或移出分组');
   markPopoverAnchor(add, pickerKey(entry.id));
   add.addEventListener('click', () => void openGroupPicker(add, entry.id));
-  box.append(add);
+  box.append(add, ratingStars(entry.id, entry.shelf.rating));
   return box;
 }
 
@@ -356,6 +358,15 @@ function iconButton(label: string, svg: string, onClick: () => void): HTMLButton
 }
 
 search.addEventListener('input', render);
+// "/" 或 ⌘K / Ctrl+K：跳到搜索框
+addEventListener('keydown', (e) => {
+  const typing = (e.target as Element).closest?.('input, textarea, select, [contenteditable]');
+  const hotkey = (e.key === '/' && !typing) || (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey));
+  if (!hotkey || e.isComposing || $<HTMLDialogElement>('dialog').open) return;
+  e.preventDefault();
+  search.focus();
+  search.select();
+});
 sort.addEventListener('change', () => {
   remember(SORT_STORAGE_KEY, sort.value);
   render();

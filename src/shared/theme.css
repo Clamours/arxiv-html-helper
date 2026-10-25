@@ -1,164 +1,201 @@
-/* 侧边栏、论文库共用的主题变量和基础组件 */
+/*
+ * 侧边栏、论文库共用的主题变量和基础组件。
+ * 配色参考 ChatGPT / Notion：界面本身只用中性灰阶，主按钮黑白反色；颜色只留给划线、分组、标记和评分
+ */
 :root {
-  --fg: #1d1d1f;
-  --fg-2: #3a3a3c;
-  --muted: #86868b;
-  --bg: #f5f5f7;
+  /* 文字：正文、次要、辅助（图标、占位符） */
+  --fg: #0d0d0d;
+  --fg-2: #5d5d5d;
+  --muted: #8f8f8f;
+  /* 表面：页面、侧栏、卡片、弹出层、输入框 */
+  --bg: #fff;
+  --bg-2: #f9f9f9;
   --card: #fff;
-  --card-hover: #fff;
-  --note-bg: #f2f2f5;
+  --raised: #fff;
   --field: #fff;
-  --line: rgba(0, 0, 0, 0.08);
-  --line-strong: rgba(0, 0, 0, 0.16);
-  --hover: rgba(0, 0, 0, 0.05);
-  --accent: #0a84ff;
-  --danger: #d70015;
-  --danger-bg: rgba(215, 0, 21, 0.08);
+  --note-bg: #f4f4f4;
+  /* 分隔线、悬停、选中 */
+  --line: rgba(0, 0, 0, 0.07);
+  --line-strong: rgba(0, 0, 0, 0.12);
+  --hover: rgba(0, 0, 0, 0.04);
+  --selected: rgba(0, 0, 0, 0.065);
+  /* 分段控件里选中的一格 */
+  --thumb: #fff;
+  --primary: #0d0d0d;
+  --on-primary: #fff;
+  --accent: #2383e2;
+  --ring: color-mix(in srgb, var(--accent) 20%, transparent);
+  --danger: #e5484d;
+  --danger-bg: rgba(229, 72, 77, 0.08);
   --warn: #b25000;
-  --live: #34c759;
+  --live: #10a37f;
   --flag: #ff9500;
-  /* 划线底色的浓度 */
-  --mark-mix: 38%;
+  --star: #ffb300;
+  /* 未点亮的星：不透明，描边和填充叠在一起时不会出现深一圈的轮廓 */
+  --star-off: #e3e3e3;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.05), 0 16px 40px rgba(0, 0, 0, 0.12);
+  --ease-out: cubic-bezier(0.2, 0.9, 0.3, 1);
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --fg: #f2f2f5;
-    --fg-2: #d1d1d6;
-    --muted: #8e8e93;
-    --bg: #1c1c1e;
-    --card: #262628;
-    --card-hover: #2c2c2e;
-    --note-bg: #1e1e20;
-    --field: #262628;
-    --line: rgba(255, 255, 255, 0.07);
-    --line-strong: rgba(255, 255, 255, 0.16);
-    --hover: rgba(255, 255, 255, 0.08);
-    --danger: #ff453a;
-    --danger-bg: rgba(255, 69, 58, 0.14);
+    --fg: #ececec;
+    --fg-2: #b4b4b4;
+    --muted: #8e8e8e;
+    --bg: #212121;
+    --bg-2: #181818;
+    --card: #2a2a2a;
+    --raised: #2f2f2f;
+    --field: rgba(255, 255, 255, 0.03);
+    --note-bg: rgba(255, 255, 255, 0.05);
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.14);
+    --hover: rgba(255, 255, 255, 0.05);
+    --selected: rgba(255, 255, 255, 0.09);
+    --thumb: rgba(255, 255, 255, 0.14);
+    --primary: #ececec;
+    --on-primary: #0d0d0d;
+    --accent: #4c9ff0;
+    --danger: #ff6369;
+    --danger-bg: rgba(255, 99, 105, 0.12);
     --warn: #ff9f0a;
-    --live: #30d158;
+    --live: #19c37d;
     --flag: #ff9f0a;
-    --mark-mix: 62%;
+    --star: #ffcc00;
+    --star-off: #4a4a4a;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.3), 0 16px 40px rgba(0, 0, 0, 0.45);
   }
 }
 
 * { box-sizing: border-box; }
+html { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 body {
   margin: 0;
-  font: 13px/1.5 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font: 13px/1.5 ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   color: var(--fg);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
 }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--accent) 24%, transparent); }
 
 /* ---- 图标按钮 ---- */
 .icon-btn {
   flex: none; width: 30px; height: 30px; padding: 0;
   display: grid; place-items: center;
   border: 0; border-radius: 8px; background: transparent; cursor: pointer;
-  color: var(--muted); transition: background-color 0.12s, color 0.12s;
+  color: var(--muted); transition: background-color 0.15s, color 0.15s;
 }
-.icon-btn svg { width: 20px; height: 20px; }
-.icon-btn:hover { background: var(--hover); color: var(--fg); }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn:hover, .icon-btn.open { background: var(--hover); color: var(--fg); }
 .icon-btn.danger:hover { background: var(--danger-bg); color: var(--danger); }
 .icon-btn.done { color: var(--live); }
 .icon-btn[hidden] { display: none; }
 
-/* ---- 划线：与页面上的高亮同色的荧光笔底色 ---- */
-.mark {
-  background: color-mix(in srgb, var(--c) var(--mark-mix), transparent);
-  border-radius: 3px; padding: 1px 2px;
-  -webkit-box-decoration-break: clone; box-decoration-break: clone;
-}
-/* 深色背景上整块底色会发灰发脏，改成荧光笔涂在文字下半部分 */
-@media (prefers-color-scheme: dark) {
-  .mark {
-    background: linear-gradient(transparent 52%, color-mix(in srgb, var(--c) var(--mark-mix), transparent) 52%);
-    border-radius: 0; padding: 0 1px;
-  }
-}
-
 /* ---- 笔记块 ---- */
 .note {
-  margin-top: 8px; padding: 7px 10px;
+  margin-top: 8px; padding: 8px 10px;
   border-radius: 8px; background: var(--note-bg);
-  color: var(--fg-2); white-space: pre-wrap; word-break: break-word;
+  color: var(--fg); white-space: pre-wrap; word-break: break-word;
 }
 
 /* ---- 小标签：译文、状态 ---- */
-.tag { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.tag { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .tag + .tag::before { content: "·"; margin-right: 6px; }
 .tag.warn { color: var(--warn); }
 
-/* ---- 空状态 ---- */
-.empty { text-align: center; padding: 56px 24px; color: var(--muted); }
-.empty svg { width: 44px; height: 44px; color: var(--muted); opacity: 0.8; }
-.empty h2 { margin: 12px 0 4px; font-size: 14px; font-weight: 600; color: var(--fg-2); }
-.empty p { margin: 0; font-size: 12.5px; line-height: 1.6; }
+/* ---- 空状态：图标放在圆角方块里 ---- */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 72px 24px; color: var(--muted); }
+.empty > svg {
+  box-sizing: content-box; width: 22px; height: 22px; padding: 13px;
+  border-radius: 14px; color: var(--fg-2);
+  background: var(--bg-2); box-shadow: inset 0 0 0 1px var(--line);
+}
+.empty h2 { margin: 16px 0 6px; font-size: 15px; font-weight: 600; color: var(--fg); }
+.empty p { margin: 0; max-width: 340px; font-size: 13px; line-height: 1.6; }
 
 /* ---- 标记（旗帜） ---- */
-.icon-btn.flagged { color: var(--flag); }
-.icon-btn.flagged:hover { color: var(--flag); }
-.icon-btn.flagged svg .fill, .flag-icon svg .fill { fill: currentColor; fill-opacity: 0.85; }
+.icon-btn.flagged, .icon-btn.flagged:hover { color: var(--flag); }
+.icon-btn.flagged svg .fill, .flag-icon svg .fill { fill: currentColor; fill-opacity: 0.9; }
 
-/* ---- 分组 chip：色点 + 名称 ---- */
+/* ---- 评分（五星） ---- */
+.rating { display: inline-flex; align-items: center; flex: none; }
+.star {
+  width: 18px; height: 20px; padding: 0; border: 0; border-radius: 5px;
+  display: grid; place-items: center;
+  background: transparent; color: var(--star-off); cursor: pointer;
+  transition: color 0.15s;
+}
+.star svg { width: 14px; height: 14px; }
+.star svg .fill { fill: currentColor; }
+.star.on { color: var(--star); }
+
+/* ---- 分组 chip：细边框 + 色点 + 名称，颜色只在色点上 ---- */
 .gchip {
-  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
-  height: 22px; padding: 0 8px 0 7px; border-radius: 999px; border: 0;
+  display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
+  height: 22px; padding: 0 9px 0 8px; border-radius: 999px; border: 0;
   font-size: 12px; line-height: 1; color: var(--fg-2); white-space: nowrap;
-  background: color-mix(in srgb, var(--c) 14%, transparent);
+  background: transparent; box-shadow: inset 0 0 0 1px var(--line-strong);
   overflow: hidden; text-overflow: ellipsis;
 }
-button.gchip { cursor: pointer; transition: background-color 0.12s; }
-button.gchip:hover { background: color-mix(in srgb, var(--c) 24%, transparent); }
+button.gchip { cursor: pointer; transition: background-color 0.15s, color 0.15s; }
+button.gchip:hover { background: var(--hover); color: var(--fg); }
 .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
-/* "加入分组"按钮，和 chip 同高 */
-.gchip.add {
-  --c: var(--muted);
-  background: transparent; color: var(--muted);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
-}
-.gchip.add svg { width: 14px; height: 14px; margin-left: -1px; }
+/* "加入分组"按钮：没有边框的弱化按钮，和 chip 同高 */
+.gchip.add { --c: var(--muted); color: var(--muted); box-shadow: none; padding: 0 8px 0 5px; gap: 3px; }
+.gchip.add svg { width: 14px; height: 14px; }
 .gchip.add:hover, .gchip.add.open { background: var(--hover); color: var(--fg); }
 
 /* ---- 弹出层 ---- */
 .popover {
   position: fixed; z-index: 20;
-  min-width: 200px; max-width: min(280px, calc(100vw - 16px));
-  padding: 6px; border-radius: 12px;
-  border: 1px solid var(--line-strong); background: var(--card);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.18);
-  font-size: 13px;
+  min-width: 220px; max-width: min(300px, calc(100vw - 16px));
+  padding: 6px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--raised);
+  box-shadow: var(--shadow-lg);
+  font-size: 13.5px;
+  transform-origin: top;
+  animation: pop-in 0.14s var(--ease-out);
 }
+@keyframes pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
 .menu-item, .picker-item {
-  display: flex; align-items: center; gap: 8px; width: 100%;
-  min-height: 30px; padding: 0 8px; border: 0; border-radius: 7px;
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  min-height: 34px; padding: 0 10px; border: 0; border-radius: 8px;
   background: transparent; color: var(--fg); text-align: left; cursor: pointer;
 }
 .menu-item:hover, .picker-item:hover, .menu-item:focus-visible, .picker-item:focus-visible {
   background: var(--hover); outline: none;
 }
-.menu-item svg, .picker-item svg { flex: none; width: 17px; height: 17px; color: var(--muted); }
+.menu-item:disabled { color: var(--muted); background: transparent; cursor: default; }
+.menu-item svg, .picker-item svg { flex: none; width: 18px; height: 18px; color: var(--fg-2); }
+.menu-item:disabled svg { color: inherit; }
 .menu-item.danger { color: var(--danger); }
 .menu-item.danger svg { color: currentColor; }
 .menu-item.danger:hover, .menu-item.confirm { background: var(--danger-bg); }
-.menu-sep { height: 1px; margin: 5px 4px; background: var(--line); }
+.menu-sep { height: 1px; margin: 6px 4px; background: var(--line); }
 
 .picker-input {
-  width: 100%; height: 32px; padding: 0 9px; margin-bottom: 4px;
+  width: 100%; height: 34px; padding: 0 10px; margin-bottom: 4px;
   font: inherit; color: var(--fg);
   border: 1px solid var(--line-strong); border-radius: 8px; background: var(--field);
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.picker-input:focus { outline: none; border-color: var(--accent); }
+.picker-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--ring); }
 .picker-input::placeholder { color: var(--muted); }
 .picker-list { max-height: 260px; overflow-y: auto; }
 .picker-item .check { flex: none; width: 16px; height: 16px; display: grid; place-items: center; visibility: hidden; }
-.picker-item .check svg { width: 16px; height: 16px; color: var(--accent); }
+.picker-item .check svg { width: 16px; height: 16px; color: var(--fg); }
 .picker-item.on .check { visibility: visible; }
 .picker-item .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.picker-item.create { color: var(--accent); }
+.picker-item.create { color: var(--fg-2); }
 .picker-item.create svg { color: currentColor; }
-.picker-empty { padding: 8px; color: var(--muted); }
+.picker-empty { padding: 8px 10px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after, ::backdrop { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

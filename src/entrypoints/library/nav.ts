@@ -38,14 +38,17 @@ export function createNav(root: HTMLElement, opts: NavOptions): { render(state: 
   /** 正在重命名的分组 id，或 'new' 表示正在新建 */
   let editing: string | null = null;
 
+  // 扩展图标 + 名称；只建一次，重新渲染时图片不会闪
+  const brand = el('div', 'nav-brand');
+  const logo = el('img', 'nav-logo') as HTMLImageElement;
+  logo.src = '/icon/128.png';
+  logo.alt = '';
+  brand.append(logo, el('span', '', '论文库'));
+
   function render(): void {
     if (!state || editing) return; // 输入时不重建，避免打断
     const { entries, groups, view } = state;
     const counts = countViews(entries, groups);
-
-    const brand = el('div', 'nav-brand');
-    brand.innerHTML = LIBRARY_ICON;
-    brand.append('论文库');
 
     const fixed = el('div', 'nav-section');
     fixed.append(

@@ -1,6 +1,6 @@
 import { COLORS, type Annotation, type HighlightColor } from '@/core/types';
+import { COLOR_SWATCH } from '@/shared/colors';
 import { PENCIL_ICON, TRASH_ICON } from '@/shared/icons';
-import { COLOR_SWATCH } from './highlighter';
 
 /**
  * 页面内的浮动 UI（划词工具栏、笔记编辑框），放在 Shadow DOM 里，
@@ -10,45 +10,70 @@ import { COLOR_SWATCH } from './highlighter';
 const CSS = `
 :host { all: initial; }
 .panel {
+  --fg: #0d0d0d; --fg-2: #5d5d5d; --muted: #8f8f8f; --bg: #fff;
+  --line: rgba(0,0,0,.08); --line-strong: rgba(0,0,0,.12); --hover: rgba(0,0,0,.05); --field: rgba(0,0,0,.025);
+  --accent: #2383e2; --danger: #e5484d; --danger-bg: rgba(229,72,77,.08);
   position: absolute; z-index: 2147483647;
   /* 宿主元素宽度为 0，不指定的话会按最小内容宽度排版，把色块挤扁、文字折行 */
   width: max-content;
   box-sizing: border-box;
-  font: 13px/1.4 system-ui, -apple-system, "PingFang SC", sans-serif;
-  color: #1d1d1f; background: #fff; border: 1px solid rgba(0,0,0,.12);
-  border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.18);
-  padding: 6px; display: flex; gap: 6px; align-items: center;
+  font: 13px/1.45 ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "PingFang SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--fg); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,.06), 0 12px 32px rgba(0,0,0,.14);
+  padding: 4px; display: flex; gap: 0; align-items: center;
+  animation: pop-in .14s cubic-bezier(.2,.9,.3,1);
 }
-.editor { flex-direction: column; align-items: stretch; width: 300px; padding: 10px; gap: 8px; }
-.row { display: flex; gap: 6px; align-items: center; }
+@keyframes pop-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
+.editor { flex-direction: column; align-items: stretch; width: 320px; padding: 8px 10px 10px; gap: 8px; }
+.row { display: flex; gap: 0; align-items: center; margin: 0 -4px; }
+/* 色块：按钮里一个圆点，选中时外面一圈同色的环 */
 .dot {
-  flex: none; box-sizing: border-box; width: 22px; height: 22px; padding: 0;
-  border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+  flex: none; box-sizing: border-box; width: 30px; height: 30px; padding: 0;
+  display: grid; place-items: center; border: 0; border-radius: 8px;
+  background: transparent; cursor: pointer;
+}
+.dot::before {
+  content: ""; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--c); box-shadow: inset 0 0 0 1px rgba(0,0,0,.1);
   transition: transform .12s ease;
 }
-.dot:hover { transform: scale(1.12); }
-.dot:focus-visible, .icon-btn:focus-visible { outline: 2px solid #0a84ff; outline-offset: 2px; }
-.dot[aria-pressed="true"] { border-color: #1d1d1f; }
-.sep { flex: none; width: 1px; height: 18px; background: currentColor; opacity: .15; margin: 0 1px; }
+.dot:hover::before { transform: scale(1.15); }
+.dot[aria-pressed="true"]::before { box-shadow: 0 0 0 2px var(--bg), 0 0 0 3.5px var(--c); }
+.dot:focus-visible, .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.sep { flex: none; width: 1px; height: 18px; background: var(--line-strong); margin: 0 4px; }
 .icon-btn {
   flex: none; box-sizing: border-box; width: 30px; height: 30px; padding: 0;
   display: grid; place-items: center; border: 0; border-radius: 8px;
-  background: transparent; color: inherit; cursor: pointer;
+  background: transparent; color: var(--fg-2); cursor: pointer;
+  transition: background-color .15s, color .15s;
 }
-.icon-btn:hover { background: rgba(0,0,0,.06); }
-.icon-btn svg { width: 22px; height: 22px; }
-.icon-btn.danger { margin-left: auto; color: #86868b; }
-.icon-btn.danger:hover { color: #d70015; background: rgba(215,0,21,.08); }
-.quote { color: #6e6e73; max-height: 4.2em; overflow: hidden; border-left: 3px solid #d2d2d7; padding-left: 8px; }
-textarea { font: inherit; resize: vertical; min-height: 72px; border: 1px solid #d2d2d7; border-radius: 6px; padding: 6px; }
+.icon-btn:hover { background: var(--hover); color: var(--fg); }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn.danger { margin-left: auto; color: var(--muted); }
+.icon-btn.danger:hover { color: var(--danger); background: var(--danger-bg); }
+/* 引文：左侧一道当前颜色的竖条，最多三行 */
+.quote {
+  position: relative; padding-left: 12px; color: var(--fg-2);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+.quote::before { content: ""; position: absolute; left: 0; top: 2px; bottom: 2px; width: 3px; border-radius: 3px; background: var(--c); }
+textarea {
+  font: inherit; color: inherit; resize: vertical; min-height: 84px; box-sizing: border-box;
+  border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px;
+  background: var(--field); outline: none; transition: border-color .15s, box-shadow .15s;
+}
+textarea::placeholder { color: var(--muted); }
+textarea:focus { border-color: color-mix(in srgb, var(--accent) 70%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
 @media (prefers-color-scheme: dark) {
-  .panel { color: #f5f5f7; background: #2c2c2e; border-color: rgba(255,255,255,.12); }
-  .dot[aria-pressed="true"] { border-color: #f5f5f7; }
-  .icon-btn:hover { background: rgba(255,255,255,.1); }
-  .icon-btn.danger { color: #8e8e93; }
-  .icon-btn.danger:hover { color: #ff453a; background: rgba(255,69,58,.14); }
-  textarea { background: #1c1c1e; color: inherit; border-color: #48484a; }
-  .quote { color: #aeaeb2; border-color: #48484a; }
+  .panel {
+    --fg: #ececec; --fg-2: #b4b4b4; --muted: #8e8e8e; --bg: #2f2f2f;
+    --line: rgba(255,255,255,.1); --line-strong: rgba(255,255,255,.14); --hover: rgba(255,255,255,.08); --field: rgba(255,255,255,.04);
+    --accent: #4c9ff0; --danger: #ff6369; --danger-bg: rgba(255,99,105,.12);
+    box-shadow: 0 4px 12px rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.45);
+  }
+  .dot::before { box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
 }
 `;
 
@@ -123,11 +148,18 @@ export class PageUi {
     this.hide();
     const el = this.panel('panel editor');
 
+    // 引文左侧的竖条跟随当前颜色
+    const q = document.createElement('div');
+    q.className = 'quote';
+    q.textContent = quote;
+    q.style.setProperty('--c', COLOR_SWATCH[ann.color]);
+
     const colors = document.createElement('div');
     colors.className = 'row';
     const dots = COLORS.map((c) => {
       const d = this.dot(c, c === ann.color, () => {
         dots.forEach((x) => x.setAttribute('aria-pressed', String(x === d)));
+        q.style.setProperty('--c', COLOR_SWATCH[c]);
         h.onColor(c);
       });
       return d;
@@ -136,10 +168,6 @@ export class PageUi {
     const del = this.iconButton('删除', TRASH_ICON, () => h.onDelete());
     del.classList.add('danger');
     colors.append(del);
-
-    const q = document.createElement('div');
-    q.className = 'quote';
-    q.textContent = quote;
 
     const ta = document.createElement('textarea');
     ta.placeholder = '写点笔记…';
@@ -186,7 +214,7 @@ export class PageUi {
     b.className = 'dot';
     b.title = COLOR_NAME[c];
     b.setAttribute('aria-label', `${COLOR_NAME[c]}高亮`);
-    b.style.background = COLOR_SWATCH[c];
+    b.style.setProperty('--c', COLOR_SWATCH[c]);
     b.setAttribute('aria-pressed', String(pressed));
     b.addEventListener('click', onClick);
     return b;

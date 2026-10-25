@@ -7,6 +7,7 @@ import {
   GROUPS_KEY,
   normalizeGroups,
   SHELF_PREFIX,
+  toRating,
   type Group,
   type Shelf,
 } from './groups';
@@ -189,7 +190,7 @@ export function deleteGroup(id: string): Promise<void> {
   });
 }
 
-/** 论文的分组和标记（没有记录时为默认值） */
+/** 论文的分组、标记和评分（没有记录时为默认值） */
 export async function loadShelf(paperId: string): Promise<Shelf> {
   const all = await browser.storage.local.get([shelfKeyOf(paperId), metaKeyOf(paperId), keyOf(paperId)]);
   return shelfFor(all, paperId);
@@ -211,6 +212,11 @@ export function setInGroup(paperId: string, groupId: string, on: boolean): Promi
 
 export function setFlagged(paperId: string, flagged: boolean): Promise<void> {
   return mutateShelf(paperId, (s) => ({ ...s, flagged }));
+}
+
+/** rating 为 0 时清除评分 */
+export function setRating(paperId: string, rating: number): Promise<void> {
+  return mutateShelf(paperId, (s) => ({ ...s, rating: toRating(rating) }));
 }
 
 // ---------------------------------------------------------------------------

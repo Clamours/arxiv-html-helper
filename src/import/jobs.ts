@@ -6,12 +6,12 @@
  * PDF 在任务进行期间暂存在 IndexedDB：上传和从 PDF 补图（MinerU 漏掉的图）都要用，任务结束后删除。
  */
 import { browser } from 'wxt/browser';
+import { JOB_PREFIX } from '@/core/docs';
 import { extractMeta, importedPaperId, sha256Hex, type PaperMeta } from '@/core/paper';
 import { recordPageMeta } from '@/core/storage';
-import { deleteDoc, deletePdf, loadDoc, loadPdf, saveDoc, savePdf } from './docs';
+import { deleteDoc, deletePdf, loadDoc, loadPdf, saveDoc, savePdf } from '@/imported/db';
 import { ImportError, MinerUClient, originOf, type ImportErrorKind, type ParseResult } from './mineru-api';
 
-export const JOB_PREFIX = 'import:job:';
 export const TOKEN_KEY = 'import:mineru-token';
 
 export interface ImportJob {
@@ -214,7 +214,7 @@ function process(paperId: string, runner: Runner): Promise<void> {
 }
 
 /**
- * 从论文库移除导入的论文时，一并删除本机的页面。
+ * 从论文库移除导入的论文时，一并删除本机的页面；云端和其他电脑上的页面在下次同步时删除（见 src/sync/docs.ts）。
  * 早期版本写到"下载/arxiv-html-helper/"的本地文件不再有 downloads 权限去删，需要用户自己删除
  */
 export async function removeImportedPage(paperId: string): Promise<void> {

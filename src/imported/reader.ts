@@ -8,7 +8,7 @@
 import { browser } from 'wxt/browser';
 import type { ReaderDocRequest } from '@/core/messages';
 import { isImportedId, READER_PAGE, readerUrl } from '@/core/paper';
-import { loadDoc } from './docs';
+import { loadDoc } from './db';
 
 /** 阅读页的访问权限（Chrome 按网站授权，路径不起作用） */
 export const READER_ORIGINS = [`${new URL(READER_PAGE).origin}/*`];
@@ -49,7 +49,7 @@ export class OpenError extends Error {
 /** 打开导入的论文：需要阅读页的访问权限（在点击事件里先申请） */
 export async function openImportedPaper(id: string): Promise<void> {
   if (!(await hasReaderAccess())) throw new OpenError('需要允许访问阅读页所在的 clamours.github.io，才能打开导入的论文', 'no-permission');
-  if (!(await loadDoc(id))) throw new OpenError('这台电脑上没有这篇论文的页面，请重新导入 PDF', 'no-doc');
+  if (!(await loadDoc(id))) throw new OpenError('这台电脑上还没有这篇论文的页面。开着云同步的话，同步后会自动下载；也可以导入含页面的备份，或重新导入 PDF', 'no-doc');
   // 刚授予权限时 background 可能还没注册好
   await syncReaderScript();
   await browser.tabs.create({ url: readerUrl(id) });

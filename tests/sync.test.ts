@@ -30,7 +30,7 @@ const meta = (id: string, over: Partial<PaperMeta> = {}): PaperMeta => ({
 const group = (id: string, name: string, over: Partial<Group> = {}): Group => ({
   id, name, color: 'green', order: 1, createdAt: 1, updatedAt: 1, ...over,
 });
-const shelf = (groups: string[], over: Partial<Shelf> = {}): Shelf => ({ groups, flagged: false, addedAt: 1, updatedAt: 1, ...over });
+const shelf = (groups: string[], over: Partial<Shelf> = {}): Shelf => ({ groups, flagged: false, rating: 0, addedAt: 1, updatedAt: 1, ...over });
 
 const NOW = 1_000_000;
 const data = (all: Record<string, unknown>) => fromStorage(all);
@@ -129,6 +129,12 @@ describe('mergeSync：论文', () => {
     const a = { 'shelf:A': shelf(['h', 'g'], { flagged: true, updatedAt: 5 }) };
     const b = { 'shelf:A': shelf(['g'], { updatedAt: 9, addedAt: 3 }), groups: [group('g', 'RL')] };
     expect(merge(a, b).papers.get('A')!.shelf).toEqual(shelf(['g'], { updatedAt: 9, addedAt: 1 }));
+  });
+
+  it('评分取修改时间较新的一份，包括清除评分；同时修改时取较高的', () => {
+    const a = { 'shelf:A': shelf([], { rating: 4, updatedAt: 5 }) };
+    expect(merge(a, { 'shelf:A': shelf([], { rating: 0, updatedAt: 9 }) }).papers.get('A')!.shelf!.rating).toBe(0);
+    expect(merge(a, { 'shelf:A': shelf([], { rating: 2, updatedAt: 5 }) }).papers.get('A')!.shelf!.rating).toBe(4);
   });
 
   it('两边都没手动改过分组时加入时间取较早的', () => {
@@ -261,6 +267,10 @@ function fakeCloud(): FakeCloud {
         cloud.text = text;
         cloud.version++;
         cloud.writes++;
+      },
+      async remove() {
+        cloud.text = null;
+        cloud.version++;
       },
     },
   };

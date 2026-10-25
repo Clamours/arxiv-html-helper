@@ -50,13 +50,13 @@ describe('groupLibrary', () => {
     expect(a.meta?.title).toBe('Title 1706.03762');
     expect(a.lastNoteAt).toBe(9);
     // 没有分组记录：默认不属于任何分组，加入时间取最早的笔记或打开时间
-    expect(a.shelf).toEqual({ groups: [], flagged: false, addedAt: 2, updatedAt: 0 });
+    expect(a.shelf).toEqual({ groups: [], flagged: false, rating: 0, addedAt: 2, updatedAt: 0 });
     const b = lib.find((e) => e.id === '2401.00001')!;
     expect(b.meta).toBeNull();
     expect(b.version).toBe('v3'); // 没有元数据时用笔记里的版本
     const c = lib.find((e) => e.id === '2402.00002')!;
     expect(c).toMatchObject({ annotations: [], lastNoteAt: 0, version: 'v2', shelf: { addedAt: 40 } });
-    expect(lib.find((e) => e.id === '2404.00004')!.shelf).toEqual({ groups: [], flagged: true, addedAt: 7, updatedAt: 8 });
+    expect(lib.find((e) => e.id === '2404.00004')!.shelf).toEqual({ groups: [], flagged: true, rating: 0, addedAt: 7, updatedAt: 8 });
   });
 });
 
@@ -66,13 +66,15 @@ describe('排序与搜索', () => {
     'meta:A': meta('A', { title: 'Attention Is All You Need', authors: ['Ashish Vaswani'], lastOpenedAt: 50 }),
     'paper:B': [ann({ updatedAt: 7 }), ann({ updatedAt: 2 })],
     'meta:B': meta('B', { title: 'BERT', lastOpenedAt: 10 }),
-    'shelf:B': { groups: [], flagged: false, addedAt: 99, updatedAt: 0 },
+    'shelf:B': { groups: [], flagged: false, rating: 3, addedAt: 99, updatedAt: 0 },
   });
 
   it.each([
     ['recent-note', ['B', 'A']],
     ['recent-open', ['A', 'B']],
     ['recent-added', ['B', 'A']],
+    // A 打开得更晚，但没有评分
+    ['rating', ['B', 'A']],
     ['count', ['B', 'A']],
     ['title', ['A', 'B']],
   ] as const)('%s', (key, order) => {

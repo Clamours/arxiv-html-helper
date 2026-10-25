@@ -13,14 +13,6 @@ const COLOR_CSS: Record<HighlightColor, string> = {
   purple: 'rgba(175, 82, 222, 0.3)',
 };
 
-export const COLOR_SWATCH: Record<HighlightColor, string> = {
-  yellow: '#ffd60a',
-  green: '#34c759',
-  blue: '#0a84ff',
-  pink: '#ff375f',
-  purple: '#af52de',
-};
-
 const name = (c: HighlightColor) => `ahh-${c}`;
 const FOCUS = 'ahh-focus';
 

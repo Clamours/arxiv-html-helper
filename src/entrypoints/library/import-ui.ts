@@ -14,7 +14,7 @@ import {
   type Runner,
 } from '@/import/jobs';
 import { MINERU_ORIGINS } from '@/import/mineru-api';
-import { OpenError, openImportedPaper, READER_ORIGINS } from '@/import/reader';
+import { OpenError, openImportedPaper, READER_ORIGINS } from '@/imported/reader';
 import { toast } from './toast';
 
 /**
@@ -196,7 +196,7 @@ export function initImportUi(): ImportUi {
     box.autofocus = true;
     box.append(
       el('h2', '', '需要允许访问阅读页'),
-      el('p', 'hint', '导入的论文在 clamours.github.io 上的阅读页里打开（这样翻译插件和 ChatGPT 侧边栏才能读到正文）。论文内容由扩展从本机填进页面，不会上传。'),
+      el('p', 'hint', '导入的论文在 clamours.github.io 上的阅读页里打开（这样翻译插件和 ChatGPT 侧边栏才能读到正文）。论文内容由扩展从本机填进页面，不会发给这个网站。'),
     );
     const actions = el('div', 'dlg-actions');
     actions.append(

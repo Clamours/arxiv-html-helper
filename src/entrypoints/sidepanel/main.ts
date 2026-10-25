@@ -1,16 +1,17 @@
 import '@/shared/theme.css';
 import './style.css';
 import { browser } from 'wxt/browser';
-import { COLOR_SWATCH } from '@/content/highlighter';
 import type { Group, Shelf } from '@/core/groups';
 import { quoteOf, toMarkdown } from '@/core/library';
 import type { PageState, Request } from '@/core/messages';
 import { isImportedId } from '@/core/paper';
 import { loadGroups, loadMeta, loadShelf, setFlagged, setSavedVisible, watchLibrary } from '@/core/storage';
 import type { AnchorStatus, Annotation } from '@/core/types';
+import { COLOR_SWATCH } from '@/shared/colors';
 import { groupChip, openGroupPicker, pickerKey } from '@/shared/group-picker';
 import { CHECK_ICON, COPY_ICON, FLAG_ICON, HIGHLIGHTER_ICON, LIBRARY_ICON, PENCIL_ICON, PLUS_ICON, TRASH_ICON } from '@/shared/icons';
 import { markPopoverAnchor } from '@/shared/popover';
+import { ratingStars } from '@/shared/rating';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const list = $('list');
@@ -29,10 +30,11 @@ flagBtn.innerHTML = FLAG_ICON;
 exportBtn.innerHTML = COPY_ICON;
 libraryBtn.innerHTML = LIBRARY_ICON;
 
+/** 这个侧边栏所属的标签页：每个标签页有自己的侧边栏（见 background.ts），点开时的当前标签页就是它 */
 let tabId: number | undefined;
 let state: PageState | null = null;
 let title = '';
-/** 当前论文的分组和标记 */
+/** 当前论文的分组、标记和评分 */
 let groups: Group[] = [];
 let shelf: Shelf | null = null;
 /** 正在编辑的笔记，刷新时不打断输入 */
@@ -61,8 +63,7 @@ async function send<T>(msg: Request): Promise<T | undefined> {
 }
 
 async function refresh(): Promise<void> {
-  const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-  tabId = tab?.id;
+  tabId ??= (await browser.tabs.query({ active: true, currentWindow: true }))[0]?.id;
   state = (await send<PageState>({ type: 'ahh:get-state' })) ?? null;
   // 存储里的标题来自 arXiv API，不会被翻译插件改写；没有时才用页面上的
   title = state ? ((await loadMeta(state.paper.id))?.title ?? state.pageTitle) : '';
@@ -105,7 +106,7 @@ function render(): void {
   for (const it of items) list.append(card(it.annotation, it.status));
 }
 
-/** 标题下方：论文所在的分组和"加入分组"按钮；右上角的标记按钮 */
+/** 标题下方：论文所在的分组和"加入分组"按钮，靠右是评分；右上角的标记按钮 */
 function renderShelf(paperId: string): void {
   const flagged = shelf?.flagged ?? false;
   flagBtn.hidden = false;
@@ -124,7 +125,7 @@ function renderShelf(paperId: string): void {
   add.title = '加入或移出分组';
   markPopoverAnchor(add, pickerKey(paperId));
   add.addEventListener('click', () => void openGroupPicker(add, paperId));
-  groupsEl.append(add);
+  groupsEl.append(add, ratingStars(paperId, shelf?.rating ?? 0));
 }
 
 /** 译文存档：段落数、显示开关、清除 */
@@ -180,9 +181,7 @@ function card(ann: Annotation, status: AnchorStatus): HTMLElement {
     c.style.cursor = 'default';
   }
 
-  const quote = el('p', 'quote');
-  quote.append(el('span', 'mark', quoteOf(ann)));
-  c.append(quote);
+  c.append(el('p', 'quote', quoteOf(ann)));
 
   let noteEl: HTMLElement | null = null;
   if (ann.note.trim()) {
@@ -190,17 +189,18 @@ function card(ann: Annotation, status: AnchorStatus): HTMLElement {
     c.append(noteEl);
   }
 
+  // 底部的标签（译文、定位状态）；没有标签时不占位
   const foot = el('div', 'card-foot');
   if (ann.layer === 'translation') foot.append(el('span', 'tag', '译文'));
   const label = statusLabel(status, ann);
   if (label) foot.append(el('span', 'tag warn', label));
+  // 操作按钮悬停时浮在右上角
   const actions = el('span', 'card-actions');
   const editBtn = iconButton(ann.note ? '编辑笔记' : '添加笔记', PENCIL_ICON, () => startEdit(c, ann, noteEl, foot));
   const delBtn = iconButton('删除', TRASH_ICON, () => void send({ type: 'ahh:delete', id: ann.id }));
   delBtn.classList.add('danger');
   actions.append(editBtn, delBtn);
-  foot.append(actions);
-  c.append(foot);
+  c.append(foot, actions);
 
   const locate = () => void send({ type: 'ahh:scroll-to', id: ann.id });
   c.addEventListener('click', (e) => {
@@ -306,7 +306,6 @@ function iconButton(label: string, svg: string, onClick: () => void): HTMLButton
 browser.runtime.onMessage.addListener((msg: { type?: string }, sender) => {
   if (msg.type === 'ahh:state-changed' && sender.tab?.id === tabId) void refresh();
 });
-browser.tabs.onActivated.addListener(() => void refresh());
 // 在论文库或其他窗口里改了分组、标记
 watchLibrary(() => void refresh());
 browser.tabs.onUpdated.addListener((id, info) => {

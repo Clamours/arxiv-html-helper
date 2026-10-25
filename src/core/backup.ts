@@ -1,3 +1,4 @@
+import { toStoredDoc, type StoredDoc } from './docs';
 import {
   GROUPS_KEY,
   mergeGroups,
@@ -34,7 +35,8 @@ import { COLORS, type Annotation, type Segment } from './types';
  * 云同步的文件也是这个格式（多了删除记录 deleted），可以直接当备份导入。
  *
  * 版本：1 只有笔记和元数据；2 增加分组（groups）和每篇论文的 shelf，并收录没有笔记的论文；
- * 3 增加删除记录（可选，只有云同步的文件有）。
+ * 3 增加删除记录（可选，只有云同步的文件有）。导入论文的页面（docs）是之后加的可选字段，只有手动导出的备份有，
+ * 旧版本的插件导入时忽略它，所以没有提高版本号。
  */
 
 export const BACKUP_FORMAT = 'arxiv-html-notes-backup';
@@ -58,6 +60,8 @@ export interface BackupFile {
   papers: BackupPaper[];
   /** 删除记录，见 tombstones.ts；手动导出的备份没有 */
   deleted?: BackupDeleted;
+  /** 导入论文的页面；云同步的文件没有（页面每篇单独同步，见 src/sync/docs.ts） */
+  docs?: StoredDoc[];
 }
 
 export interface BackupDeleted {
@@ -72,11 +76,18 @@ export class BackupError extends Error {}
 // 导出
 // ---------------------------------------------------------------------------
 
-/** 从 storage 的全部内容生成备份；收录论文库里的全部论文 */
-export function createBackup(all: Record<string, unknown>, extensionVersion: string, now = new Date()): BackupFile {
+/** 从 storage 的全部内容生成备份；收录论文库里的全部论文，以及其中导入论文的页面（docs 是本机的全部页面） */
+export function createBackup(
+  all: Record<string, unknown>,
+  extensionVersion: string,
+  now = new Date(),
+  docs: StoredDoc[] = [],
+): BackupFile {
   const papers: BackupPaper[] = groupLibrary(all)
     .map((e) => ({ id: e.id, meta: e.meta, annotations: e.annotations, shelf: e.shelf }))
     .sort((a, b) => a.id.localeCompare(b.id));
+  const ids = new Set(papers.map((p) => p.id));
+  const kept = docs.filter((d) => ids.has(d.id)).sort((a, b) => a.id.localeCompare(b.id));
   return {
     format: BACKUP_FORMAT,
     version: BACKUP_VERSION,
@@ -84,6 +95,7 @@ export function createBackup(all: Record<string, unknown>, extensionVersion: str
     extensionVersion,
     groups: normalizeGroups(all[GROUPS_KEY]),
     papers,
+    ...(kept.length ? { docs: kept.map((d) => ({ id: d.id, sha256: d.sha256, html: d.html })) } : {}),
   };
 }
 
@@ -106,6 +118,8 @@ export interface ParsedBackup {
   invalid: number;
   /** 版本 3 之前的备份、手动导出的备份为空 */
   deleted: BackupDeleted;
+  /** 文件里论文的页面（格式不对的已跳过）；内容和 sha256 是否相符在导入时校验 */
+  docs: StoredDoc[];
 }
 
 export function parseBackup(text: string): ParsedBackup {
@@ -140,12 +154,15 @@ export function parseBackup(text: string): ParsedBackup {
     papers.push({ id, meta: toMeta(p.meta, id), annotations, shelf: toShelf(p.shelf) });
   }
   const groups = Array.isArray(data.groups) ? data.groups.map(toGroup).filter((g): g is Group => !!g) : [];
+  const ids = new Set(papers.map((p) => p.id));
+  const docs = Array.isArray(data.docs) ? data.docs.map(toStoredDoc).filter((d): d is StoredDoc => !!d && ids.has(d.id)) : [];
   return {
     groups,
     papers,
     invalid,
     exportedAt: typeof data.exportedAt === 'string' ? data.exportedAt : '',
     deleted: toDeleted(data.deleted),
+    docs,
   };
 }
 

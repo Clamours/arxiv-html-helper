@@ -1,3 +1,5 @@
+import { PANEL_CLOSE_ICON, PANEL_OPEN_ICON } from '@/shared/icons';
+
 /**
  * 导入论文页面左侧的目录（arXiv HTML 自带目录，导入的页面没有）。
  *
@@ -75,67 +77,71 @@ const PAGE_CSS = `html.${DOCKED_CLASS} body { padding-left: ${WIDTH}px; }`;
 
 const CSS = `
 :host { all: initial; }
+.panel, .open-btn {
+  --fg: #0d0d0d; --fg-2: #5d5d5d; --muted: #8f8f8f; --bg: #f9f9f9; --raised: #fff;
+  --line: rgba(0,0,0,.07); --hover: rgba(0,0,0,.045); --selected: rgba(0,0,0,.07); --accent: #2383e2;
+}
 .panel {
   position: fixed; z-index: 2147483646; top: 0; left: 0; bottom: 0;
   width: ${WIDTH}px; box-sizing: border-box; display: flex; flex-direction: column;
-  font: 13px/1.45 system-ui, -apple-system, "PingFang SC", sans-serif;
-  color: #1d1d1f; background: #f7f7f8; border-right: 1px solid rgba(0,0,0,.1);
+  font: 13px/1.45 ui-sans-serif, -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", "PingFang SC", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--fg-2); background: var(--bg); border-right: 1px solid var(--line);
 }
 .panel[hidden] { display: none; }
-.panel.overlay { width: min(${WIDTH + 30}px, 85vw); box-shadow: 0 0 32px rgba(0,0,0,.25); }
-.head { display: flex; align-items: center; gap: 6px; padding: 10px 8px 8px 16px; font-weight: 600; }
+.panel.overlay { width: min(${WIDTH + 30}px, 85vw); box-shadow: 0 16px 48px rgba(0,0,0,.18); animation: slide-in .18s cubic-bezier(.2,.9,.3,1); }
+@keyframes slide-in { from { transform: translateX(-12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .panel.overlay { animation: none; } }
+.head { display: flex; align-items: center; gap: 6px; padding: 12px 10px 6px 18px; font-size: 12.5px; font-weight: 500; color: var(--muted); }
 .head span { flex: 1; }
-.list { flex: 1; overflow-y: auto; padding: 0 8px 24px; overscroll-behavior: contain; }
+.list { flex: 1; overflow-y: auto; padding: 0 10px 24px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
 ul { list-style: none; margin: 0; padding: 0; }
-ul ul { padding-left: 14px; }
+ul ul { padding-left: 12px; }
 li > ul { display: none; }
 li.open > ul { display: block; }
 .row { display: flex; align-items: flex-start; }
-.caret, .spacer { flex: none; width: 18px; height: 24px; }
+.caret, .spacer { flex: none; width: 18px; height: 27px; }
 .caret {
-  padding: 0; border: 0; background: transparent; color: #86868b; cursor: pointer;
-  display: grid; place-items: center; border-radius: 4px;
+  padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  display: grid; place-items: center; border-radius: 6px;
 }
-.caret::before { content: ""; border: 4px solid transparent; border-left: 5px solid currentColor; margin-left: 4px; transition: transform .12s ease; }
+.caret::before { content: ""; border: 4px solid transparent; border-left: 5px solid currentColor; margin-left: 4px; transition: transform .15s ease; }
 li.open > .row > .caret::before { transform: rotate(90deg); margin: 4px 0 0 2px; }
-.caret:hover { color: inherit; background: rgba(0,0,0,.06); }
+.caret:hover { color: var(--fg); background: var(--hover); }
 a {
-  flex: 1; min-width: 0; display: flex; gap: 6px; padding: 3px 6px; border-radius: 6px;
-  color: inherit; text-decoration: none; cursor: pointer;
+  flex: 1; min-width: 0; display: flex; gap: 7px; padding: 4px 8px; border-radius: 7px;
+  color: inherit; text-decoration: none; cursor: pointer; transition: background-color .15s, color .15s;
 }
-a:hover { background: rgba(0,0,0,.06); }
-a.active { background: rgba(10,132,255,.12); color: #0a64d6; font-weight: 600; }
-.num { flex: none; color: #86868b; font-variant-numeric: tabular-nums; }
-a.active .num { color: inherit; }
+a:hover { background: var(--hover); color: var(--fg); }
+a.active { background: var(--selected); color: var(--fg); font-weight: 500; }
+.num { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+a.active .num { color: var(--fg-2); }
 .title { min-width: 0; overflow-wrap: anywhere; }
 math { font-family: "Latin Modern Math", "STIX Two Math", "Cambria Math", math; }
 .icon-btn {
   flex: none; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px;
-  display: grid; place-items: center; background: transparent; color: inherit; cursor: pointer;
+  display: grid; place-items: center; background: transparent; color: var(--muted); cursor: pointer;
+  transition: background-color .15s, color .15s;
 }
-.icon-btn:hover { background: rgba(0,0,0,.06); }
+.icon-btn:hover { background: var(--hover); color: var(--fg); }
 .icon-btn svg { width: 18px; height: 18px; }
 .open-btn {
-  position: fixed; z-index: 2147483646; top: 12px; left: 12px;
-  background: #fff; color: #1d1d1f; border: 1px solid rgba(0,0,0,.12); box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  position: fixed; z-index: 2147483646; top: 12px; left: 12px; width: 36px; height: 36px; border-radius: 10px;
+  background: var(--raised); color: var(--fg-2); border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.08);
 }
 .open-btn[hidden] { display: none; }
-.open-btn:hover { background: #f2f2f4; }
-button:focus-visible, a:focus-visible { outline: 2px solid #0a84ff; outline-offset: 1px; }
+.open-btn:hover { background: var(--raised); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 6px 18px rgba(0,0,0,.12); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 @media (prefers-color-scheme: dark) {
-  .panel { color: #f5f5f7; background: #232325; border-color: rgba(255,255,255,.1); }
-  .caret:hover, a:hover, .icon-btn:hover { background: rgba(255,255,255,.08); }
-  a.active { background: rgba(10,132,255,.22); color: #6cb2ff; }
-  .open-btn { background: #2c2c2e; color: #f5f5f7; border-color: rgba(255,255,255,.12); }
-  .open-btn:hover { background: #3a3a3c; }
+  .panel, .open-btn {
+    --fg: #ececec; --fg-2: #b4b4b4; --muted: #8e8e8e; --bg: #181818; --raised: #2f2f2f;
+    --line: rgba(255,255,255,.08); --hover: rgba(255,255,255,.05); --selected: rgba(255,255,255,.09); --accent: #4c9ff0;
+  }
+  .open-btn, .open-btn:hover { box-shadow: 0 4px 14px rgba(0,0,0,.4); }
 }
 @media print { .panel, .open-btn { display: none; } }
 `;
-
-const LIST_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>';
-const CLOSE_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>';
 
 function readClosed(): boolean {
   try {
@@ -193,13 +199,13 @@ export class Toc {
     head.className = 'head';
     const label = document.createElement('span');
     label.textContent = '目录';
-    head.append(label, this.iconButton('收起目录', CLOSE_ICON, () => this.setOpen(false)));
+    head.append(label, this.iconButton('收起目录', PANEL_CLOSE_ICON, () => this.setOpen(false)));
     this.list = document.createElement('div');
     this.list.className = 'list';
     this.list.append(this.renderList(entries, null));
     this.panel.append(head, this.list);
 
-    this.openBtn = this.iconButton('目录', LIST_ICON, () => this.setOpen(true));
+    this.openBtn = this.iconButton('目录', PANEL_OPEN_ICON, () => this.setOpen(true));
     this.openBtn.classList.add('open-btn');
     shadow.append(style, this.panel, this.openBtn);
 

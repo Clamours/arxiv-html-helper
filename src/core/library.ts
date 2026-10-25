@@ -65,7 +65,7 @@ export function shelfFor(all: Record<string, unknown>, id: string): Shelf {
 
 export const titleOf = (e: LibraryEntry) => e.meta?.title ?? e.id;
 
-export type SortKey = 'recent-note' | 'recent-open' | 'recent-added' | 'count' | 'title';
+export type SortKey = 'recent-note' | 'recent-open' | 'recent-added' | 'rating' | 'count' | 'title';
 
 const openedAt = (e: LibraryEntry) => e.meta?.lastOpenedAt ?? 0;
 
@@ -74,6 +74,7 @@ export function sortLibrary(entries: LibraryEntry[], key: SortKey): LibraryEntry
     'recent-note': (a, b) => b.lastNoteAt - a.lastNoteAt || openedAt(b) - openedAt(a),
     'recent-open': (a, b) => openedAt(b) - openedAt(a) || b.lastNoteAt - a.lastNoteAt,
     'recent-added': (a, b) => b.shelf.addedAt - a.shelf.addedAt || openedAt(b) - openedAt(a),
+    rating: (a, b) => b.shelf.rating - a.shelf.rating || openedAt(b) - openedAt(a),
     count: (a, b) => b.annotations.length - a.annotations.length || b.lastNoteAt - a.lastNoteAt,
     title: (a, b) => titleOf(a).localeCompare(titleOf(b)),
   };

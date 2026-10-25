@@ -1,6 +1,6 @@
 import { browser } from 'wxt/browser';
 import type { SyncNowRequest } from '@/core/messages';
-import { CLOUD_ICON, CLOUD_OFF_ICON } from '@/shared/icons';
+import { CLOUD_CHECK_ICON, CLOUD_ICON, CLOUD_OFF_ICON } from '@/shared/icons';
 import {
   checkWebdavConfig,
   DEFAULT_CONFIG,
@@ -63,17 +63,20 @@ export function initSyncUi(): void {
   function renderButton(): void {
     const on = config.provider !== 'off';
     const error = on && status.state === 'error';
+    let icon = CLOUD_ICON;
     let label = '云同步';
     let title = '在多台电脑之间自动同步笔记、论文库和分组';
     if (on && isSyncing(status)) label = '同步中…';
     else if (error) {
+      icon = CLOUD_OFF_ICON;
       label = status.needsAuth ? '需要重新连接' : '同步出错';
       title = status.error ?? '';
     } else if (on && status.lastSuccessAt) {
+      icon = CLOUD_CHECK_ICON;
       label = '已同步';
       title = `上次同步：${formatTime(status.lastSuccessAt)}`;
     }
-    btn.innerHTML = `${error ? CLOUD_OFF_ICON : CLOUD_ICON}<span>${label}</span>`;
+    btn.innerHTML = `${icon}<span>${label}</span>`;
     btn.title = title;
     btn.classList.toggle('warn', error);
   }
@@ -115,10 +118,15 @@ export function initSyncUi(): void {
     // ---- WebDAV ----
     const webdav = el('div', 'form');
     const w = draft.webdav;
-    webdav.append(
-      field('服务器地址', 'url', w.url, 'https://dav.jianguoyun.com/dav/', (v) => (w.url = v)),
+    // 用户名和密码并排，弹窗矮一些
+    const account = el('div', 'field-row');
+    account.append(
       field('用户名', 'text', w.username, '坚果云填登录邮箱', (v) => (w.username = v), 'username'),
       field('密码', 'password', w.password, '坚果云填"应用密码"', (v) => (w.password = v), 'current-password'),
+    );
+    webdav.append(
+      field('服务器地址', 'url', w.url, 'https://dav.jianguoyun.com/dav/', (v) => (w.url = v)),
+      account,
       field('文件夹', 'text', w.folder, 'arxiv-html-helper', (v) => (w.folder = v)),
       el(
         'p',

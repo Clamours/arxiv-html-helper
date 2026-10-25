@@ -53,20 +53,26 @@ async function call(url: string, init: RequestInit = {}, retry = true): Promise<
   return res;
 }
 
-/** 应用专用文件夹里的一个文件（默认是同步文件，译文存档另有文件） */
+/** 应用专用文件夹里的一个文件（默认是同步文件，译文存档和导入论文的页面另有文件） */
 export function gdriveProvider(name = SYNC_FILE_NAME): SyncProvider {
+  /** 同名文件的 id，先建的在前 */
+  async function find(): Promise<string[]> {
+    const q = encodeURIComponent(`name = '${name.replace(/['\\]/g, '\\$&')}' and trashed = false`);
+    const res = await call(`${FILES}?spaces=appDataFolder&q=${q}&fields=files(id)&orderBy=createdTime&pageSize=10`);
+    return ((await res.json()) as { files?: { id: string }[] }).files?.map((f) => f.id) ?? [];
+  }
+
   return {
     async read(): Promise<RemoteFile> {
-      const q = encodeURIComponent(`name = '${name.replace(/['\\]/g, '\\$&')}' and trashed = false`);
-      const res = await call(`${FILES}?spaces=appDataFolder&q=${q}&fields=files(id)&orderBy=createdTime&pageSize=10`);
-      const ids = ((await res.json()) as { files?: { id: string }[] }).files?.map((f) => f.id) ?? [];
+      const ids = await find();
       const texts = await Promise.all(ids.map(async (id) => (await call(`${FILES}/${id}?alt=media`)).text()));
       return { texts, version: ids };
     },
 
     async write(text, prev) {
-      // Drive 不支持条件写入；两台电脑同时写入时，下一次同步会把被覆盖的改动合并回来
-      const ids = Array.isArray(prev.version) ? (prev.version as string[]) : [];
+      // Drive 不支持条件写入；两台电脑同时写入时，下一次同步会把被覆盖的改动合并回来。
+      // 没有先 read 时按文件名找已有的文件，免得再建一个同名文件
+      const ids = Array.isArray(prev.version) ? (prev.version as string[]) : await find();
       if (ids[0]) {
         await call(`${UPLOAD}/${ids[0]}?uploadType=media`, {
           method: 'PATCH',
@@ -96,6 +102,10 @@ export function gdriveProvider(name = SYNC_FILE_NAME): SyncProvider {
       }
       // 多余的同名文件已经合并进来了
       for (const id of ids.slice(1)) await call(`${FILES}/${id}`, { method: 'DELETE' }).catch(() => {});
+    },
+
+    async remove() {
+      for (const id of await find()) await call(`${FILES}/${id}`, { method: 'DELETE' });
     },
   };
 }

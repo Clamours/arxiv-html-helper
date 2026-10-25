@@ -18,7 +18,7 @@ const roundtrip = (all: Record<string, unknown>) => parseBackup(JSON.stringify(c
 const group = (id: string, name: string, over: Partial<Group> = {}): Group => ({
   id, name, color: 'green', order: 1, createdAt: 1, updatedAt: 1, ...over,
 });
-const shelf = (groups: string[], over: Partial<Shelf> = {}): Shelf => ({ groups, flagged: false, addedAt: 1, updatedAt: 1, ...over });
+const shelf = (groups: string[], over: Partial<Shelf> = {}): Shelf => ({ groups, flagged: false, rating: 0, addedAt: 1, updatedAt: 1, ...over });
 
 describe('createBackup / parseBackup', () => {
   it('无损往返，包含译文层、元数据和分组；收录只浏览过的论文，跳过无关键和空列表', () => {
@@ -42,7 +42,7 @@ describe('createBackup / parseBackup', () => {
     expect(b.papers.map((p) => p.id)).toEqual(['A', 'B', 'D']);
     expect(b.groups.map((g) => g.id)).toEqual(['g1']);
     // 没有分组记录的论文导出默认值（不属于任何分组）
-    expect(b.papers[0]!.shelf).toEqual({ groups: [], flagged: false, addedAt: 1, updatedAt: 0 });
+    expect(b.papers[0]!.shelf).toEqual({ groups: [], flagged: false, rating: 0, addedAt: 1, updatedAt: 0 });
     const parsed = parseBackup(JSON.stringify(b));
     expect(parsed.invalid).toBe(0);
     expect(parsed.papers).toEqual(b.papers);
@@ -97,7 +97,7 @@ describe('planImport', () => {
     const src = { 'paper:A': [ann('a1', 'A'), ann('a2', 'A')], 'meta:A': meta('A') };
     const plan = planImport({}, roundtrip(src));
     expect(plan.summary).toMatchObject({ papers: 1, newPapers: 1, added: 2, updated: 0, unchanged: 0, keptLocal: 0, newGroups: 0 });
-    expect(plan.writes).toEqual({ ...src, 'shelf:A': { groups: [], flagged: false, addedAt: 1, updatedAt: 0 } });
+    expect(plan.writes).toEqual({ ...src, 'shelf:A': { groups: [], flagged: false, rating: 0, addedAt: 1, updatedAt: 0 } });
   });
 
   it('按 id 合并：新增、更新、保留本地较新的、相同的不写', () => {
@@ -156,7 +156,7 @@ describe('planImport：分组', () => {
     const plan = planImport(local, roundtrip(backup));
     expect(plan.summary).toMatchObject({ newGroups: 1, shelvesChanged: 1, unchanged: 1 });
     expect((plan.writes.groups as Group[]).map((g) => g.name)).toEqual(['RL', 'Agent', 'Vision']);
-    expect(plan.writes['shelf:A']).toEqual({ groups: ['mine', 'new'], flagged: true, addedAt: 1, updatedAt: 9 });
+    expect(plan.writes['shelf:A']).toEqual({ groups: ['mine', 'new'], flagged: true, rating: 0, addedAt: 1, updatedAt: 9 });
   });
 
   it('本地已有分组记录的论文：备份里没有 shelf（版本 1）时不改动', () => {
@@ -201,5 +201,32 @@ describe('planImport：恢复已删除的内容', () => {
     expect((w['shelf:A'] as Shelf).updatedAt).toBe(1000);
     expect(Object.fromEntries((w['paper:B'] as Annotation[]).map((a) => [a.id, a.updatedAt]))).toEqual({ b: 1000, b2: 5 });
     expect((w.groups as Group[]).find((g) => g.id === 'g')!.updatedAt).toBe(1000);
+  });
+});
+
+describe('导入论文的页面', () => {
+  const X = 'pdf-0123456789abcdef0123';
+  const Y = 'pdf-fedcba9876543210fedc';
+  const doc = (id: string, c: string) => ({ id, html: `<p>${id}</p>`, sha256: c.repeat(64) });
+
+  it('导出时带上论文库里论文的页面；已移除论文的页面不带，没有页面时不写 docs', () => {
+    const all = { [`meta:${X}`]: meta(X), 'meta:A': meta('A') };
+    const kept = doc(X, 'a');
+    const b = createBackup(all, '0.1.0', new Date(), [doc(Y, 'b'), kept]);
+    expect(b.docs).toEqual([kept]);
+    expect(parseBackup(JSON.stringify(b)).docs).toEqual([kept]);
+    expect(createBackup(all, '0.1.0')).not.toHaveProperty('docs');
+    expect(roundtrip(all).docs).toEqual([]);
+  });
+
+  it('解析时跳过格式不对的页面，以及文件里没有这篇论文的页面', () => {
+    const ok = doc(X, 'a');
+    const text = JSON.stringify({
+      format: 'arxiv-html-notes-backup',
+      version: 3,
+      papers: [{ id: X, meta: meta(X), annotations: [] }],
+      docs: [ok, { ...ok, sha256: 'xyz' }, { ...ok, html: '' }, { ...ok, id: '2401.00001' }, doc(Y, 'b'), 'junk'],
+    });
+    expect(parseBackup(text).docs).toEqual([ok]);
   });
 });

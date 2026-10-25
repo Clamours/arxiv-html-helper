@@ -1,32 +1,58 @@
 import { browser } from 'wxt/browser';
 import { BackupError, backupFileName, createBackup, parseBackup, planImport, type ImportSummary } from '@/core/backup';
+import type { StoredDoc } from '@/core/docs';
+import { sha256Hex } from '@/core/paper';
 import { readAll, writeMany } from '@/core/storage';
-import { DOWNLOAD_ICON, UPLOAD_ICON } from '@/shared/icons';
+import { listDocs, localDocs } from '@/imported/db';
+import { DOWNLOAD_ICON, MORE_ICON, UPLOAD_ICON } from '@/shared/icons';
+import { closePopover, openPopover } from '@/shared/popover';
 import { toast } from './toast';
 
 /**
- * 论文库页的"导出备份 / 导入备份"：导出为 JSON 文件下载；
- * 导入时先预览合并结果，确认后一次性写入。
+ * 论文库页头"更多"菜单里的"导出备份 / 导入备份"：导出为 JSON 文件下载（含导入论文的页面）；
+ * 导入时先预览合并结果，确认后一次性写入。本机已有的论文页面不替换。
  */
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export function initBackupUi(): { setHasData(has: boolean): void } {
-  const exportBtn = $<HTMLButtonElement>('export');
-  const importBtn = $<HTMLButtonElement>('import');
+  const menuBtn = $<HTMLButtonElement>('backup');
   const fileInput = $<HTMLInputElement>('import-file');
   const dialog = $<HTMLDialogElement>('dialog');
-  exportBtn.innerHTML = `${DOWNLOAD_ICON}<span>导出备份</span>`;
-  importBtn.innerHTML = `${UPLOAD_ICON}<span>导入备份</span>`;
+  let hasData = false;
+  menuBtn.innerHTML = MORE_ICON;
 
-  exportBtn.addEventListener('click', async () => {
-    const backup = createBackup(await readAll(), browser.runtime.getManifest().version);
-    const n = backup.papers.reduce((sum, p) => sum + p.annotations.length, 0);
-    download(backupFileName(), JSON.stringify(backup, null, 2));
-    toast(`已导出 ${backup.papers.length} 篇论文、${n} 条划线、${backup.groups.length} 个分组`);
+  menuBtn.addEventListener('click', () => {
+    const box = el('div', 'menu');
+    box.setAttribute('role', 'menu');
+    const exportItem = menuItem(DOWNLOAD_ICON, '导出备份', '把全部论文、划线、笔记、分组和导入论文的页面保存为一个 JSON 文件，用于备份或迁移到其他电脑', () => {
+      closePopover();
+      void exportBackup();
+    });
+    exportItem.disabled = !hasData;
+    const importItem = menuItem(UPLOAD_ICON, '导入备份', '从备份文件恢复，与现有内容合并', () => {
+      closePopover();
+      fileInput.click();
+    });
+    box.append(exportItem, importItem);
+    openPopover('backup-menu', menuBtn, box, { align: 'end' })?.el.querySelector<HTMLElement>('.menu-item:enabled')?.focus();
   });
 
-  importBtn.addEventListener('click', () => fileInput.click());
+  async function exportBackup(): Promise<void> {
+    let backup;
+    try {
+      backup = createBackup(await readAll(), browser.runtime.getManifest().version, new Date(), await listDocs());
+    } catch (e) {
+      // 少了页面的备份不能悄悄导出
+      toast(`导出失败：${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    const n = backup.papers.reduce((sum, p) => sum + p.annotations.length, 0);
+    download(backupFileName(), JSON.stringify(backup, null, 2));
+    const pages = backup.docs?.length ? `、${backup.docs.length} 篇导入论文的页面` : '';
+    toast(`已导出 ${backup.papers.length} 篇论文、${n} 条划线、${backup.groups.length} 个分组${pages}`);
+  }
+
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     fileInput.value = ''; // 允许重复选择同一个文件
@@ -42,11 +68,22 @@ export function initBackupUi(): { setHasData(has: boolean): void } {
       return;
     }
     const { summary, writes } = planImport(await readAll(), parsed);
-    const nothing = Object.keys(writes).length === 0;
+    let docs: StoredDoc[];
+    try {
+      docs = await missingDocs(parsed.docs);
+    } catch (e) {
+      showDialog('无法导入', [file.name], [], e instanceof Error ? e.message : String(e));
+      return;
+    }
+    const nothing = Object.keys(writes).length === 0 && !docs.length;
     const when = parsed.exportedAt ? `导出于 ${new Date(parsed.exportedAt).toLocaleString('zh-CN')}` : '';
-    showDialog('导入备份', [file.name, when], summaryRows(summary), null, nothing ? null : async () => {
+    const rows = summaryRows(summary);
+    if (docs.length) rows.push(['论文页面（本机没有的）', docs.length, false]);
+    showDialog('导入备份', [file.name, when], rows, null, nothing ? null : async () => {
       // 确认时基于最新的本地数据重新计算，避免预览之后本地又有改动
       const fresh = planImport(await readAll(), parsed);
+      // 先存页面：论文出现在论文库里时，页面已经在了
+      const pages = await restoreDocs(await missingDocs(parsed.docs));
       await writeMany(fresh.writes);
       const { added, updated, newPapers, newGroups, shelvesChanged } = fresh.summary;
       const parts = [
@@ -55,6 +92,8 @@ export function initBackupUi(): { setHasData(has: boolean): void } {
         updated && `更新划线 ${updated} 条`,
         newGroups && `新增分组 ${newGroups} 个`,
         shelvesChanged && `${shelvesChanged} 篇论文的分组有变化`,
+        pages.restored && `恢复论文页面 ${pages.restored} 篇`,
+        pages.damaged && `${pages.damaged} 篇页面已损坏，已跳过`,
       ].filter(Boolean);
       toast(parts.length ? `已导入：${parts.join('，')}` : '没有需要导入的内容');
     });
@@ -117,9 +156,19 @@ export function initBackupUi(): { setHasData(has: boolean): void } {
 
   return {
     setHasData(has) {
-      exportBtn.disabled = !has;
+      hasData = has;
     },
   };
+}
+
+function menuItem(svg: string, label: string, hint: string, onClick: () => void): HTMLButtonElement {
+  const b = el('button', 'menu-item') as HTMLButtonElement;
+  b.setAttribute('role', 'menuitem');
+  b.title = hint;
+  b.innerHTML = svg;
+  b.append(el('span', '', label));
+  b.addEventListener('click', onClick);
+  return b;
 }
 
 function summaryRows(s: ImportSummary): [string, number, boolean][] {
@@ -134,6 +183,24 @@ function summaryRows(s: ImportSummary): [string, number, boolean][] {
   if (s.unchanged) rows.push(['已存在，无需改动', s.unchanged, true]);
   if (s.invalid) rows.push(['格式有误，已跳过', s.invalid, true]);
   return rows;
+}
+
+/** 备份里本机还没有的论文页面 */
+async function missingDocs(docs: StoredDoc[]): Promise<StoredDoc[]> {
+  if (!docs.length) return [];
+  const have = await localDocs.hashes();
+  return docs.filter((d) => !have[d.id]);
+}
+
+/** 校验内容和 sha256 相符后保存（本机已有的不替换） */
+async function restoreDocs(docs: StoredDoc[]): Promise<{ restored: number; damaged: number }> {
+  let restored = 0;
+  let damaged = 0;
+  for (const doc of docs) {
+    if ((await sha256Hex(new TextEncoder().encode(doc.html))) !== doc.sha256) damaged++;
+    else if (await localDocs.add(doc)) restored++;
+  }
+  return { restored, damaged };
 }
 
 function download(name: string, text: string): void {

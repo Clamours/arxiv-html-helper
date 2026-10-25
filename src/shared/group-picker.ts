@@ -1,6 +1,6 @@
-import { COLOR_SWATCH } from '@/content/highlighter';
 import { findGroupByName, type Group, type GroupColor, type Shelf } from '@/core/groups';
 import { createGroup, loadGroups, loadShelf, setInGroup, watchLibrary } from '@/core/storage';
+import { COLOR_SWATCH } from './colors';
 import { CHECK_ICON, PLUS_ICON } from './icons';
 import { closePopover, isPopoverOpen, openPopover } from './popover';
 

@@ -1,9 +1,9 @@
 import { COLORS, type HighlightColor } from './types';
 
 /**
- * 分组：一篇论文可以属于多个分组（相当于标签），另外可以单独"标记"。
+ * 分组：一篇论文可以属于多个分组（相当于标签），另外可以单独"标记"和评分。
  * - `groups`：全部分组的定义。论文按 id 引用分组，重命名只改这一处
- * - `shelf:<paperId>`：这篇论文属于哪些分组、是否标记
+ * - `shelf:<paperId>`：这篇论文属于哪些分组、是否标记、评几星
  *
  * 浏览过的论文加入论文库时不属于任何分组。没有 shelf 记录的论文（升级前的旧数据）按 defaultShelf 处理。
  * 这里只放纯逻辑，读写 storage 在 storage.ts。
@@ -29,15 +29,23 @@ export interface Shelf {
   /** Group.id；可能残留已删除分组的 id，展示时按现有分组过滤 */
   groups: string[];
   flagged: boolean;
+  /** 1–5 星；0 表示未评分（旧数据没有这个字段） */
+  rating: number;
   /** 加入论文库的时间 */
   addedAt: number;
-  /** 最近一次修改分组或标记的时间；0 表示从未手动改过 */
+  /** 最近一次修改分组、标记或评分的时间；0 表示从未手动改过 */
   updatedAt: number;
 }
 
+export const MAX_RATING = 5;
+
 export function defaultShelf(addedAt: number): Shelf {
-  return { groups: [], flagged: false, addedAt, updatedAt: 0 };
+  return { groups: [], flagged: false, rating: 0, addedAt, updatedAt: 0 };
 }
+
+/** 1–5 的整数原样保留，其余视为未评分 */
+export const toRating = (x: unknown): number =>
+  typeof x === 'number' && Number.isInteger(x) && x >= 1 && x <= MAX_RATING ? x : 0;
 
 /** 校验、去重、排序 */
 export function normalizeGroups(value: unknown): Group[] {
@@ -68,6 +76,7 @@ export function toShelf(x: unknown): Shelf | null {
   return {
     groups: [...new Set(x.groups.filter((g): g is string => typeof g === 'string' && !!g))],
     flagged: x.flagged === true,
+    rating: toRating(x.rating),
     addedAt: num(x.addedAt),
     updatedAt: num(x.updatedAt),
   };
@@ -139,13 +148,14 @@ export function mergeGroups(local: Group[], incoming: Group[]): GroupMerge {
   return { groups: out, idMap, added, changed };
 }
 
-/** 分组取并集；标记取修改时间较新的一方；加入时间取较早的 */
+/** 分组取并集；标记和评分取修改时间较新的一方；加入时间取较早的 */
 export function mergeShelves(local: Shelf, incoming: Shelf): Shelf {
   const newer = incoming.updatedAt > local.updatedAt ? incoming : local;
   const added = [local.addedAt, incoming.addedAt].filter(Boolean);
   return {
     groups: [...new Set([...local.groups, ...incoming.groups])],
     flagged: newer.flagged,
+    rating: newer.rating,
     addedAt: added.length ? Math.min(...added) : 0,
     updatedAt: Math.max(local.updatedAt, incoming.updatedAt),
   };
@@ -153,6 +163,7 @@ export function mergeShelves(local: Shelf, incoming: Shelf): Shelf {
 
 export const sameShelf = (a: Shelf, b: Shelf) =>
   a.flagged === b.flagged &&
+  a.rating === b.rating &&
   a.addedAt === b.addedAt &&
   a.updatedAt === b.updatedAt &&
   a.groups.length === b.groups.length &&

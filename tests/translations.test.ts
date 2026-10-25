@@ -351,6 +351,9 @@ function fakeFiles() {
       files.set(name, { text, version: cur + 1 });
       writes++;
     },
+    async remove() {
+      files.delete(name);
+    },
   });
   return {
     files,

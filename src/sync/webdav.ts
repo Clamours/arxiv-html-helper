@@ -2,7 +2,7 @@ import { SYNC_FILE_NAME, webdavFolderUrl, type WebdavConfig } from './config';
 import { request, SyncError, type RemoteFile, type SyncProvider } from './provider';
 
 /**
- * WebDAV（坚果云、Nextcloud、群晖等）：设置的文件夹里的一个 JSON 文件（默认是同步文件，译文存档另有文件）。
+ * WebDAV（坚果云、Nextcloud、群晖等）：设置的文件夹里的一个 JSON 文件（默认是同步文件，译文存档和导入论文的页面另有文件）。
  * 用 ETag + If-Match 检测两台电脑同时写入；服务器不支持时退化为直接覆盖。
  */
 export function webdavProvider(config: WebdavConfig, name = SYNC_FILE_NAME): SyncProvider {
@@ -55,6 +55,12 @@ export function webdavProvider(config: WebdavConfig, name = SYNC_FILE_NAME): Syn
       }
       if (res.status === 412) throw new SyncError('云端文件刚被其他电脑修改过', 'conflict');
       if (!res.ok) throw new SyncError(`上传到 WebDAV 失败（HTTP ${res.status}）`, 'remote');
+    },
+
+    async remove() {
+      const res = await call('DELETE', file);
+      // 404：文件不存在；409：文件夹不存在
+      if (!res.ok && res.status !== 404 && res.status !== 409) throw new SyncError(`删除 WebDAV 上的文件失败（HTTP ${res.status}）`, 'remote');
     },
   };
 }

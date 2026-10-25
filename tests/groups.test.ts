@@ -69,15 +69,17 @@ describe('mergeGroups', () => {
   });
 });
 
-it('mergeShelves：分组取并集，标记取较新的，加入时间取较早的', () => {
-  const local = { groups: ['a', 'c'], flagged: false, addedAt: 50, updatedAt: 5 };
-  const incoming = { groups: ['b', 'a'], flagged: true, addedAt: 20, updatedAt: 9 };
-  expect(mergeShelves(local, incoming)).toEqual({ groups: ['a', 'c', 'b'], flagged: true, addedAt: 20, updatedAt: 9 });
-  // 本地较新：标记保留本地；没有加入时间的一方不参与
-  expect(mergeShelves({ ...local, updatedAt: 10 }, { ...incoming, addedAt: 0 })).toMatchObject({ flagged: false, addedAt: 50 });
+it('mergeShelves：分组取并集，标记和评分取较新的，加入时间取较早的', () => {
+  const local = { groups: ['a', 'c'], flagged: false, rating: 2, addedAt: 50, updatedAt: 5 };
+  const incoming = { groups: ['b', 'a'], flagged: true, rating: 0, addedAt: 20, updatedAt: 9 };
+  expect(mergeShelves(local, incoming)).toEqual({ groups: ['a', 'c', 'b'], flagged: true, rating: 0, addedAt: 20, updatedAt: 9 });
+  // 本地较新：标记和评分保留本地；没有加入时间的一方不参与
+  expect(mergeShelves({ ...local, updatedAt: 10 }, { ...incoming, addedAt: 0 })).toMatchObject({ flagged: false, rating: 2, addedAt: 50 });
 });
 
 it('toShelf 校验并去重', () => {
-  expect(toShelf({ groups: ['a', 'a', 3, ''], flagged: 'yes' })).toEqual({ groups: ['a'], flagged: false, addedAt: 0, updatedAt: 0 });
+  expect(toShelf({ groups: ['a', 'a', 3, ''], flagged: 'yes' })).toEqual({ groups: ['a'], flagged: false, rating: 0, addedAt: 0, updatedAt: 0 });
+  expect(toShelf({ groups: [], rating: 4 })!.rating).toBe(4);
+  for (const rating of [6, 2.5, -1, '3']) expect(toShelf({ groups: [], rating })!.rating).toBe(0);
   expect(toShelf({ flagged: true })).toBeNull();
 });

@@ -1,6 +1,8 @@
 import { browser } from 'wxt/browser';
+import { libraryDocs } from '@/core/docs';
 import type { SyncNowRequest } from '@/core/messages';
 import { fingerprint, fromStorage, isSyncedKey } from '@/core/sync';
+import { localDocs } from '@/imported/db';
 import { localTranslations } from '@/translations/db';
 import { broadcastTranslationsChanged } from '@/translations/service';
 import {
@@ -13,6 +15,7 @@ import {
   type SyncConfig,
   type SyncStatus,
 } from './config';
+import { syncDocs } from './docs';
 import { syncOnce, type LocalStore } from './engine';
 import { gdriveProvider } from './gdrive';
 import { SyncError, type SyncProvider } from './provider';
@@ -22,7 +25,8 @@ import { webdavProvider } from './webdav';
 /**
  * background 里的同步调度。触发时机：
  * - 本地数据有改动：等几秒（合并连续的改动）后同步；数据和上次同步后一样时跳过。
- *   译文存档不在 storage 里，有改动时由译文存档服务调用 markTranslationsDirty
+ *   译文存档不在 storage 里，有改动时由译文存档服务调用 markTranslationsDirty；
+ *   导入论文的页面也不在 storage 里，但导入、移除时论文库同时改变，会一起同步
  * - 定时：按设置的间隔拉取其他电脑的改动
  * - 浏览器启动；论文库页、论文页打开时（最近半分钟内同步过就跳过）；手动"立即同步"
  * 同一时间只有一次同步在进行，排队中的请求合并为一次。
@@ -145,6 +149,7 @@ async function run(mode: Mode): Promise<SyncStatus> {
       translationsDirty = true;
       throw e;
     }
+    await syncDocs(file, localDocs, async () => libraryDocs(await store.getAll()));
     status = { state: 'idle', lastSuccessAt: Date.now(), lastAttemptAt: startedAt, ...(changes ? { changes } : {}) };
   } catch (e) {
     lastFingerprint = null;

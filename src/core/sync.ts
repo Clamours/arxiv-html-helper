@@ -210,7 +210,7 @@ function mergeMeta(a: PaperMeta | null, b: PaperMeta | null): PaperMeta | null {
   };
 }
 
-/** 修改时间较新的一份胜出；同时修改（包括都从未手动改过）时分组取并集、标记任一方即可；加入时间取较早的 */
+/** 修改时间较新的一份胜出；同时修改（包括都从未手动改过）时分组取并集、标记任一方即可、评分取较高的；加入时间取较早的 */
 function mergeShelf(a: Shelf | null, b: Shelf | null): Shelf | null {
   if (!a || !b) return a ?? b;
   const added = [a.addedAt, b.addedAt].filter(Boolean);
@@ -219,6 +219,7 @@ function mergeShelf(a: Shelf | null, b: Shelf | null): Shelf | null {
   return {
     groups: [...new Set([...a.groups, ...b.groups])],
     flagged: a.flagged || b.flagged,
+    rating: Math.max(a.rating, b.rating),
     addedAt,
     updatedAt: a.updatedAt,
   };

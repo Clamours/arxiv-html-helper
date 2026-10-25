@@ -61,7 +61,7 @@ export default defineConfig({
     return {
       name: OFFICIAL ? 'arXiv HTML Helper' : 'arXiv HTML Helper (Dev)',
       description: '在 arXiv HTML 页面上划线、高亮、做笔记，支持沉浸式翻译 / 陪读蛙的译文。',
-      // scripting：有阅读页的访问权限时，在阅读页上注册内容脚本（见 src/import/reader.ts）
+      // scripting：有阅读页的访问权限时，在阅读页上注册内容脚本（见 src/imported/reader.ts）
       permissions: ['storage', 'unlimitedStorage', 'sidePanel', 'alarms', 'scripting', ...(clientId ? ['identity'] : [])],
       // 论文库从 arXiv API 获取标题和作者
       host_permissions: ['https://export.arxiv.org/*'],
