@@ -12,7 +12,7 @@ import {
   type Shelf,
 } from './groups';
 import { groupLibrary, META_PREFIX, PAPER_PREFIX, shelfFor } from './library';
-import type { PaperDoc, PaperMeta } from './paper';
+import { API_DETAILS, type PaperDoc, type PaperMeta } from './paper';
 import {
   annotationDeleted,
   DELETED_GROUPS_KEY,
@@ -35,8 +35,8 @@ import { COLORS, type Annotation, type Segment } from './types';
  * 云同步的文件也是这个格式（多了删除记录 deleted），可以直接当备份导入。
  *
  * 版本：1 只有笔记和元数据；2 增加分组（groups）和每篇论文的 shelf，并收录没有笔记的论文；
- * 3 增加删除记录（可选，只有云同步的文件有）。导入论文的页面（docs）是之后加的可选字段，只有手动导出的备份有，
- * 旧版本的插件导入时忽略它，所以没有提高版本号。
+ * 3 增加删除记录（可选，只有云同步的文件有）。之后加的可选字段旧版本的插件导入时会忽略，所以没有提高版本号：
+ * 导入论文的页面（docs，只有手动导出的备份有）、元数据里 arXiv API 的摘要等。
  */
 
 export const BACKUP_FORMAT = 'arxiv-html-notes-backup';
@@ -206,7 +206,7 @@ function isSegment(s: unknown): boolean {
 
 export function toMeta(m: unknown, id: string): PaperMeta | null {
   if (!isObj(m) || typeof m.title !== 'string') return null;
-  return {
+  const out: PaperMeta = {
     id,
     version: typeof m.version === 'string' ? m.version : '',
     title: m.title,
@@ -215,7 +215,13 @@ export function toMeta(m: unknown, id: string): PaperMeta | null {
     ...(typeof m.published === 'string' ? { published: m.published } : {}),
     ...(m.source === 'api' || m.source === 'page' ? { source: m.source } : {}),
     ...(toDoc(m.doc) ? { doc: toDoc(m.doc)! } : {}),
+    ...(typeof m.apiAt === 'number' && Number.isFinite(m.apiAt) && m.apiAt > 0 ? { apiAt: m.apiAt } : {}),
   };
+  for (const key of API_DETAILS) {
+    const value = m[key];
+    if (typeof value === 'string' && value) out[key] = value;
+  }
+  return out;
 }
 
 function toDoc(d: unknown): PaperDoc | null {
@@ -354,10 +360,12 @@ export function planImport(current: Record<string, unknown>, parsed: ParsedBacku
   return { writes, summary };
 }
 
-/** API 来源优先于页面提取；同来源时取最近打开的一份；打开时间取两者较晚者 */
+/** API 来源优先于页面提取；都来自 API 时取后获取的一份；其余取最近打开的一份；打开时间取两者较晚者 */
 function betterMeta(a: PaperMeta | null, b: PaperMeta | null): PaperMeta | null {
   if (!a || !b) return a ?? b;
   const rank = (m: PaperMeta) => (m.source === 'api' ? 1 : 0);
-  const win = rank(b) > rank(a) || (rank(b) === rank(a) && b.lastOpenedAt > a.lastOpenedAt) ? b : a;
+  const fetched = (m: PaperMeta) => m.apiAt ?? 0;
+  const fresher = fetched(a) !== fetched(b) ? fetched(b) > fetched(a) : b.lastOpenedAt > a.lastOpenedAt;
+  const win = rank(b) > rank(a) || (rank(b) === rank(a) && fresher) ? b : a;
   return { ...win, lastOpenedAt: Math.max(a.lastOpenedAt, b.lastOpenedAt) };
 }

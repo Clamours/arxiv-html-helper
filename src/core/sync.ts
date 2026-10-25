@@ -25,7 +25,7 @@ import type { Annotation } from './types';
  *
  * 合并规则（两边对称，合并结果与先后顺序无关）：
  * - 笔记、分组定义、论文的分组和标记：各自按修改时间，较新的一份胜出
- * - 元数据：标题作者 API 来源优先，打开时间取较晚的
+ * - 元数据：API 来源优先，都来自 API 时取后获取的；打开时间取较晚的
  * - 删除：删除时间不早于修改时间的视为已删除，见 tombstones.ts
  * - 两台电脑各自新建的同名分组合并为一个：保留先建的，论文上的另一个 id 换成它
  */
@@ -192,12 +192,17 @@ function mergePaper(a: SyncPaper, b: SyncPaper): SyncPaper {
   };
 }
 
-/** 标题作者 API 来源优先，同来源取最近打开的；版本取最近打开的；打开时间取较晚的 */
+/**
+ * 标题、作者、摘要等 API 来源优先，都来自 API 时取后获取的（旧版本扩展获取的没有获取时间），其余取最近打开的；
+ * 版本取最近打开的；打开时间取较晚的
+ */
 function mergeMeta(a: PaperMeta | null, b: PaperMeta | null): PaperMeta | null {
   if (!a || !b) return a ?? b;
   const rank = (m: PaperMeta) => (m.source === 'api' ? 1 : 0);
   const opened = newer(a, b, (m) => m.lastOpenedAt);
-  const base = rank(a) === rank(b) ? opened : rank(a) > rank(b) ? a : b;
+  const fetched = (m: PaperMeta) => m.apiAt ?? 0;
+  const fresher = fetched(a) === fetched(b) ? opened : fetched(a) > fetched(b) ? a : b;
+  const base = rank(a) === rank(b) ? fresher : rank(a) > rank(b) ? a : b;
   const other = base === a ? b : a;
   const published = base.published ?? other.published;
   const doc = pickDoc(a.doc, b.doc);

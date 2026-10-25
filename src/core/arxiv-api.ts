@@ -12,10 +12,24 @@ export interface ApiMeta {
   authors: string[];
   /** 首个版本的发布时间（ISO） */
   published: string;
+  abstract: string;
+  /** 主分类，如 cs.CL */
+  category: string;
+  /** 最新版本，如 v7 */
+  latestVersion: string;
+  /** 最新版本的发布时间（ISO） */
+  updated: string;
+  /** 以下几项作者没填时为空串 */
+  doi: string;
+  /** 正式发表的期刊、会议 */
+  journalRef: string;
+  /** 作者的备注，常写页数、录用的会议 */
+  comment: string;
 }
 
 const API = 'https://export.arxiv.org/api/query';
 const ATOM = 'http://www.w3.org/2005/Atom';
+const ARXIV = 'http://arxiv.org/schemas/atom';
 /** 单次请求的 id 数；arXiv 要求连续请求间隔至少 3 秒 */
 const BATCH = 50;
 const INTERVAL_MS = 3000;
@@ -27,14 +41,26 @@ export function parseArxivFeed(xml: string): ApiMeta[] {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
   const out: ApiMeta[] = [];
   for (const entry of Array.from(doc.getElementsByTagNameNS(ATOM, 'entry'))) {
-    const child = (name: string) => entry.getElementsByTagNameNS(ATOM, name)[0]?.textContent;
+    const child = (name: string, ns = ATOM) => entry.getElementsByTagNameNS(ns, name)[0]?.textContent;
     // <id>http://arxiv.org/abs/2305.10403v3</id>，旧式 id 形如 abs/hep-th/9901001v3
     const m = /\/abs\/(.+?)(v\d+)?$/.exec(oneLine(child('id')));
     if (!m) continue;
     const authors = Array.from(entry.getElementsByTagNameNS(ATOM, 'author'))
       .map((a) => oneLine(a.getElementsByTagNameNS(ATOM, 'name')[0]?.textContent))
       .filter(Boolean);
-    out.push({ id: m[1]!, title: oneLine(child('title')), authors, published: oneLine(child('published')) });
+    out.push({
+      id: m[1]!,
+      title: oneLine(child('title')),
+      authors,
+      published: oneLine(child('published')),
+      abstract: oneLine(child('summary')),
+      category: entry.getElementsByTagNameNS(ARXIV, 'primary_category')[0]?.getAttribute('term')?.trim() ?? '',
+      latestVersion: m[2] ?? '',
+      updated: oneLine(child('updated')),
+      doi: oneLine(child('doi', ARXIV)),
+      journalRef: oneLine(child('journal_ref', ARXIV)),
+      comment: oneLine(child('comment', ARXIV)),
+    });
   }
   return out;
 }

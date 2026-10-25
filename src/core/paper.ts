@@ -1,3 +1,5 @@
+import type { ApiMeta } from './arxiv-api';
+
 export interface PaperRef {
   /** 不含版本号，作为存储 key */
   id: string;
@@ -25,7 +27,27 @@ export interface PaperMeta {
   source?: 'page' | 'api';
   /** 导入的 PDF 才有：生成的论文页面 */
   doc?: PaperDoc;
+  /**
+   * 以下来自 arXiv API，apiAt 是获取时间。旧版本扩展获取的数据没有这些字段，论文库页会重新获取（见 needsApiMeta）；
+   * doi、journalRef、comment 作者没填时没有
+   */
+  apiAt?: number;
+  abstract?: string;
+  /** 主分类，如 cs.CL */
+  category?: string;
+  /** 获取时的最新版本，如 v7 */
+  latestVersion?: string;
+  /** 最新版本的发布时间（ISO） */
+  updated?: string;
+  doi?: string;
+  /** 正式发表的期刊、会议 */
+  journalRef?: string;
+  /** 作者的备注，常写页数、录用的会议 */
+  comment?: string;
 }
+
+/** 随 API 数据整体更新的字段 */
+export const API_DETAILS = ['abstract', 'category', 'latestVersion', 'updated', 'doi', 'journalRef', 'comment'] as const;
 
 /**
  * 导入的论文页面（PDF 经 MinerU 解析后生成的 HTML）。页面生成后不再改变，划线依赖它的结构；
@@ -103,12 +125,9 @@ export function mergePageMeta(cur: PaperMeta | null, fromPage: PaperMeta): Paper
   return { ...cur, version: fromPage.version || cur.version, lastOpenedAt: fromPage.lastOpenedAt };
 }
 
-/** 拿到 API 数据时：覆盖标题、作者，保留打开记录 */
-export function mergeApiMeta(
-  cur: PaperMeta | null,
-  api: { id: string; title: string; authors: string[]; published: string },
-): PaperMeta {
-  return {
+/** 拿到 API 数据时：覆盖标题、作者、摘要等，保留打开记录 */
+export function mergeApiMeta(cur: PaperMeta | null, api: ApiMeta, now = Date.now()): PaperMeta {
+  const out: PaperMeta = {
     version: '',
     lastOpenedAt: 0,
     ...cur,
@@ -117,8 +136,23 @@ export function mergeApiMeta(
     authors: api.authors.length ? api.authors : (cur?.authors ?? []),
     published: api.published || cur?.published,
     source: 'api',
+    apiAt: now,
   };
+  // 作者后来删掉的 DOI 等不保留旧值
+  for (const key of API_DETAILS) {
+    if (api[key]) out[key] = api[key];
+    else delete out[key];
+  }
+  return out;
 }
+
+/** 需要（重新）从 arXiv API 获取：还没获取过、旧版本扩展获取的（没有摘要等），或打开过比已知最新版本更新的版本 */
+export function needsApiMeta(m: PaperMeta | null): boolean {
+  if (m?.source !== 'api' || !m.apiAt) return true;
+  return versionNumber(m.version) > versionNumber(m.latestVersion);
+}
+
+const versionNumber = (v = '') => Number(/^v(\d+)$/.exec(v)?.[1] ?? 0);
 
 export function paperUrl(id: string, version = ''): string {
   return `https://arxiv.org/html/${id}${version}`;

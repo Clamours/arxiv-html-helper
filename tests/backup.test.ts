@@ -139,6 +139,15 @@ describe('planImport', () => {
     const m2 = planImport(backup, roundtrip(local)).writes['meta:A'] as PaperMeta;
     expect(m2).toMatchObject({ title: 'API 标题', lastOpenedAt: 50 });
   });
+
+  it('元数据：摘要等 arXiv 信息原样往返；都来自 API 时取后获取的一份', () => {
+    const details = { apiAt: 9, abstract: '摘要', category: 'cs.CL', latestVersion: 'v7', updated: '2023-08-02T00:00:00Z', doi: '10.1/x', journalRef: 'NeurIPS', comment: '15 pages' };
+    const fetched = { 'meta:A': meta('A', { source: 'api', lastOpenedAt: 10, ...details }) };
+    expect(roundtrip(fetched).papers[0]!.meta).toEqual(fetched['meta:A']);
+    const old = { 'meta:A': meta('A', { source: 'api', lastOpenedAt: 50 }) };
+    expect(planImport(old, roundtrip(fetched)).writes['meta:A']).toMatchObject({ ...details, lastOpenedAt: 50 });
+    expect(planImport(fetched, roundtrip(old)).writes['meta:A']).toMatchObject({ ...details, lastOpenedAt: 50 });
+  });
 });
 
 describe('planImport：分组', () => {

@@ -125,6 +125,18 @@ describe('mergeSync：论文', () => {
     expect(merge(a, b).papers.get('A')!.meta).toEqual({ ...meta('A'), title: 'API', source: 'api', version: 'v3', lastOpenedAt: 20, published: '2017' });
   });
 
+  it('元数据：都来自 API 时，摘要等取后获取的一份；旧版本获取的（没有获取时间）让位，与顺序无关', () => {
+    const old = meta('A', { title: 'Old', source: 'api', lastOpenedAt: 30 });
+    const fetched = (apiAt: number, over: Partial<PaperMeta> = {}) =>
+      meta('A', { title: 'New', source: 'api', apiAt, abstract: `摘要 ${apiAt}`, category: 'cs.CL', lastOpenedAt: 10, ...over });
+    for (const [a, b] of [[old, fetched(5)], [fetched(5), old]]) {
+      const m = merge({ 'meta:A': a }, { 'meta:A': b }).papers.get('A')!.meta!;
+      expect(m).toMatchObject({ title: 'New', apiAt: 5, abstract: '摘要 5', lastOpenedAt: 30 });
+    }
+    const m = merge({ 'meta:A': fetched(5, { lastOpenedAt: 40, version: 'v4' }) }, { 'meta:A': fetched(8) }).papers.get('A')!.meta!;
+    expect(m).toMatchObject({ apiAt: 8, abstract: '摘要 8', version: 'v4', lastOpenedAt: 40 });
+  });
+
   it('分组和标记取修改时间较新的一份：移出分组也能同步', () => {
     const a = { 'shelf:A': shelf(['h', 'g'], { flagged: true, updatedAt: 5 }) };
     const b = { 'shelf:A': shelf(['g'], { updatedAt: 9, addedAt: 3 }), groups: [group('g', 'RL')] };

@@ -18,7 +18,7 @@ import {
   type SortKey,
   type View,
 } from '@/core/library';
-import { isImportedId, paperUrl } from '@/core/paper';
+import { isImportedId, needsApiMeta, paperUrl } from '@/core/paper';
 import { deletePaper, readAll, recordApiMeta, setFlagged, watchLibrary } from '@/core/storage';
 import { initBackupUi } from './backup-ui';
 import { initImportUi } from './import-ui';
@@ -103,13 +103,13 @@ async function copyGroup(group: Group): Promise<void> {
   toast(`已复制「${group.name}」中 ${withNotes.length} 篇论文的笔记`);
 }
 
-// ---- 从 arXiv API 补全标题和作者 ----
+// ---- 从 arXiv API 补全标题、作者、摘要等 ----
 /** 本次打开页面已经尝试过的 id，避免 API 查不到的论文反复请求 */
 const attempted = new Set<string>();
 let fetchStatus = '';
 
 async function backfillMeta(): Promise<void> {
-  const ids = entries.filter((e) => e.meta?.source !== 'api' && !isImportedId(e.id) && !attempted.has(e.id)).map((e) => e.id);
+  const ids = entries.filter((e) => !isImportedId(e.id) && needsApiMeta(e.meta) && !attempted.has(e.id)).map((e) => e.id);
   if (!ids.length) return;
   ids.forEach((id) => attempted.add(id));
   fetchStatus = `正在从 arXiv 获取 ${ids.length} 篇论文的信息…`;

@@ -8,7 +8,13 @@
     <title>Attention Is All
       You  Need</title>
     <updated>2023-08-02T00:41:18Z</updated>
+    <summary>The dominant sequence transduction models are based on complex recurrent or
+      convolutional neural networks.  We propose a new simple network architecture, the Transformer.</summary>
+    <category term="cs.CL" scheme="http://arxiv.org/schemas/atom"/>
+    <category term="cs.LG" scheme="http://arxiv.org/schemas/atom"/>
     <published>2017-06-12T17:57:34Z</published>
+    <arxiv:comment>15 pages, 5 figures</arxiv:comment>
+    <arxiv:primary_category term="cs.CL"/>
     <author>
       <name>Ashish Vaswani</name>
     </author>
@@ -24,9 +30,17 @@
   <entry>
     <id>http://arxiv.org/abs/hep-th/9901001v3</id>
     <title>String Junctions and Their Duals in Heterotic String Theory</title>
+    <updated>1999-05-10T04:45:54Z</updated>
+    <summary>  We explicitly give the correspondence between spectra of heterotic string theory compactified on $T^2$ and string junctions in type IIB theory compactified on $S^2$.</summary>
+    <category term="hep-th" scheme="http://arxiv.org/schemas/atom"/>
     <published>1999-01-01T01:01:10Z</published>
+    <arxiv:comment>13 pages + 4 eps figures, PTPTeX, typographical errors corrected</arxiv:comment>
+    <arxiv:primary_category term="hep-th"/>
+    <arxiv:journal_ref>Prog.Theor.Phys.101:1155-1164,1999</arxiv:journal_ref>
     <author>
       <name>Yosuke Imamura</name>
     </author>
+    <arxiv:doi>10.1143/PTP.101.1155</arxiv:doi>
+    <link rel="related" href="https://doi.org/10.1143/PTP.101.1155" title="doi"/>
   </entry>
 </feed>
