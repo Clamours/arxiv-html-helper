@@ -1,5 +1,5 @@
 import { defaultShelf, SHELF_PREFIX, toShelf, type Group, type Shelf } from './groups';
-import { isImportedId, paperUrl, type PaperMeta } from './paper';
+import type { PaperMeta } from './paper';
 import type { Annotation } from './types';
 
 /**
@@ -162,51 +162,4 @@ export function searchLibrary(entries: LibraryEntry[], query: string): SearchRes
 
 export function quoteOf(a: Annotation): string {
   return a.segments.map((s) => s.quote.exact).join(' … ');
-}
-
-/**
- * 不打开论文页时，按块 key 近似还原文档顺序：
- * 摘要等无章节前缀的 → 正文 S* → 附录 A* → 参考文献 bib*，同类内按数字自然排序。
- */
-export function sortByDocumentOrder(anns: Annotation[]): Annotation[] {
-  const rank = (key: string) => {
-    const id = key.replace(/^#/, '');
-    if (/^S\d/.test(id)) return 1;
-    if (/^A\d/.test(id)) return 2;
-    if (id.startsWith('bib')) return 3;
-    return 0;
-  };
-  const cmp = (a: Annotation, b: Annotation) => {
-    const ka = a.segments[0]?.blockKey ?? '';
-    const kb = b.segments[0]?.blockKey ?? '';
-    return (
-      rank(ka) - rank(kb) ||
-      ka.localeCompare(kb, 'en', { numeric: true }) ||
-      (a.segments[0]?.position.start ?? 0) - (b.segments[0]?.position.start ?? 0) ||
-      a.createdAt - b.createdAt
-    );
-  };
-  return [...anns].sort(cmp);
-}
-
-export function toMarkdown(p: { id: string; version: string; title?: string }, anns: Annotation[]): string {
-  const imported = isImportedId(p.id);
-  const label = imported ? '导入的 PDF' : `arXiv ${p.id}${p.version}`;
-  const heading = p.title ? `${p.title}（${label}）` : label;
-  // 导入的论文页面只在本机，没有可分享的链接
-  const lines = [`# ${heading} 笔记`, '', ...(imported ? [] : [paperUrl(p.id, p.version), ''])];
-  for (const a of anns) {
-    const tag = a.layer === 'translation' ? '（译文）' : '';
-    lines.push(`> ${quoteOf(a).replace(/\n/g, '\n> ')}${tag}`, '');
-    if (a.note) lines.push(a.note, '');
-  }
-  return lines.join('\n');
-}
-
-/** 多篇论文的笔记合成一份 Markdown（按传入顺序，跳过没有笔记的论文） */
-export function entriesToMarkdown(entries: LibraryEntry[]): string {
-  return entries
-    .filter((e) => e.annotations.length)
-    .map((e) => toMarkdown({ id: e.id, version: e.version, title: e.meta?.title }, sortByDocumentOrder(e.annotations)))
-    .join('\n---\n\n');
 }

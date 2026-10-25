@@ -2,14 +2,15 @@ import '@/shared/theme.css';
 import './style.css';
 import { browser } from 'wxt/browser';
 import type { Group, Shelf } from '@/core/groups';
-import { quoteOf, toMarkdown } from '@/core/library';
+import { quoteOf } from '@/core/library';
 import type { PageState, Request } from '@/core/messages';
 import { isImportedId } from '@/core/paper';
 import { loadGroups, loadMeta, loadShelf, setFlagged, setSavedVisible, watchLibrary } from '@/core/storage';
 import type { AnchorStatus, Annotation } from '@/core/types';
+import { citationOf } from '@/shared/citation';
 import { COLOR_SWATCH } from '@/shared/colors';
 import { groupChip, openGroupPicker, pickerKey } from '@/shared/group-picker';
-import { CHECK_ICON, COPY_ICON, FLAG_ICON, HIGHLIGHTER_ICON, LIBRARY_ICON, PENCIL_ICON, PLUS_ICON, TRASH_ICON } from '@/shared/icons';
+import { CHECK_ICON, FLAG_ICON, HIGHLIGHTER_ICON, LIBRARY_ICON, PENCIL_ICON, PLUS_ICON, QUOTE_ICON, TRASH_ICON } from '@/shared/icons';
 import { markPopoverAnchor } from '@/shared/popover';
 import { ratingStars } from '@/shared/rating';
 
@@ -24,10 +25,11 @@ const savedToggle = $<HTMLButtonElement>('saved-toggle');
 const savedClear = $<HTMLButtonElement>('saved-clear');
 const groupsEl = $('groups');
 const flagBtn = $<HTMLButtonElement>('flag');
-const exportBtn = $<HTMLButtonElement>('export');
+const citeBtn = $<HTMLButtonElement>('cite');
 const libraryBtn = $<HTMLButtonElement>('library');
+const CITE_LABEL = '复制引用（BibTeX）';
 flagBtn.innerHTML = FLAG_ICON;
-exportBtn.innerHTML = COPY_ICON;
+citeBtn.innerHTML = QUOTE_ICON;
 libraryBtn.innerHTML = LIBRARY_ICON;
 
 /** 这个侧边栏所属的标签页：每个标签页有自己的侧边栏（见 background.ts），点开时的当前标签页就是它 */
@@ -78,7 +80,7 @@ function render(): void {
   if (!state) {
     titleEl.textContent = 'arXiv HTML Helper';
     subEl.textContent = '';
-    exportBtn.hidden = true;
+    citeBtn.hidden = true;
     flagBtn.hidden = true;
     groupsEl.hidden = true;
     savedEl.hidden = true;
@@ -98,7 +100,8 @@ function render(): void {
   else providersEl.append(chip('未检测到译文', false));
   renderSaved(state);
 
-  exportBtn.hidden = items.length === 0;
+  // 导入的 PDF 没有可靠的出版信息，不提供引用
+  citeBtn.hidden = isImportedId(paper.id);
   if (!items.length) {
     list.append(empty('还没有笔记', '选中页面上的文字即可划线，原文和译文都可以'));
     return;
@@ -251,19 +254,26 @@ function startEdit(c: HTMLElement, ann: Annotation, noteEl: HTMLElement | null, 
   );
 }
 
-exportBtn.addEventListener('click', async () => {
+citeBtn.addEventListener('click', async () => {
   if (!state) return;
-  await navigator.clipboard.writeText(
-    toMarkdown({ ...state.paper, title: title || undefined }, state.items.map((it) => it.annotation)),
-  );
-  exportBtn.innerHTML = CHECK_ICON;
-  exportBtn.classList.add('done');
-  exportBtn.title = '已复制';
-  setTimeout(() => {
-    exportBtn.innerHTML = COPY_ICON;
-    exportBtn.classList.remove('done');
-    exportBtn.title = '复制为 Markdown';
-  }, 1500);
+  const flash = (icon: string, label: string, cls: string) => {
+    citeBtn.innerHTML = icon;
+    citeBtn.classList.add(cls);
+    citeBtn.title = label;
+    setTimeout(() => {
+      citeBtn.innerHTML = QUOTE_ICON;
+      citeBtn.classList.remove(cls);
+      citeBtn.title = CITE_LABEL;
+    }, 1500);
+  };
+  try {
+    const bib = await citationOf(state.paper.id);
+    if (!bib) throw new Error('not found');
+    await navigator.clipboard.writeText(bib);
+    flash(CHECK_ICON, '已复制 BibTeX', 'done');
+  } catch {
+    flash(QUOTE_ICON, '没能获取论文信息，请稍后再试', 'failed');
+  }
 });
 
 flagBtn.addEventListener('click', () => {

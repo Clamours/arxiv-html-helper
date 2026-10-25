@@ -2,7 +2,7 @@ import { findGroupByName, GROUP_COLORS, type Group, type GroupColor } from '@/co
 import { countViews, groupView, type LibraryEntry, type View } from '@/core/library';
 import { createGroup, deleteGroup, updateGroup } from '@/core/storage';
 import { GROUP_SWATCH } from '@/shared/group-picker';
-import { COPY_ICON, FLAG_ICON, INBOX_ICON, LIBRARY_ICON, MORE_ICON, PENCIL_ICON, PLUS_ICON, TRASH_ICON } from '@/shared/icons';
+import { FLAG_ICON, INBOX_ICON, LIBRARY_ICON, MORE_ICON, PENCIL_ICON, PLUS_ICON, TRASH_ICON } from '@/shared/icons';
 import { closePopover, markPopoverAnchor, openPopover } from '@/shared/popover';
 import { toast } from './toast';
 
@@ -19,7 +19,6 @@ export interface NavState {
 
 export interface NavOptions {
   onSelect(view: View): void;
-  onCopyGroup(group: Group): void;
 }
 
 const COLOR_NAMES: Record<GroupColor, string> = {
@@ -183,13 +182,6 @@ export function createNav(root: HTMLElement, opts: NavOptions): { render(state: 
       swatches.append(s);
     }
     box.append(swatches);
-
-    box.append(
-      menuItem(COPY_ICON, '复制全部笔记为 Markdown', () => {
-        closePopover();
-        opts.onCopyGroup(g);
-      }),
-    );
 
     box.append(el('div', 'menu-sep'));
     let armed = false;

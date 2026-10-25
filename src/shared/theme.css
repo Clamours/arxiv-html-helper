@@ -95,6 +95,7 @@ button { font: inherit; color: inherit; }
 .icon-btn:hover, .icon-btn.open { background: var(--hover); color: var(--fg); }
 .icon-btn.danger:hover { background: var(--danger-bg); color: var(--danger); }
 .icon-btn.done { color: var(--live); }
+.icon-btn.failed { color: var(--danger); }
 .icon-btn[hidden] { display: none; }
 
 /* ---- 笔记块 ---- */

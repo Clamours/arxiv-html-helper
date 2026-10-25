@@ -1,7 +1,6 @@
 import { strToU8, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
 import { toMeta } from '../src/core/backup';
-import { toMarkdown } from '../src/core/library';
 import {
   importedPaperId,
   isImportedId,
@@ -181,11 +180,5 @@ describe('导入信息（PaperDoc）的合并', () => {
     const b = fromStorage({ [`meta:${id}`]: meta(doc(1, 'b')) });
     expect(mergeSync(a, b, 10).papers.get(id)!.meta!.doc).toEqual(doc(1, 'b'));
     expect(mergeSync(b, a, 10).papers.get(id)!.meta!.doc).toEqual(doc(1, 'b'));
-  });
-
-  it('导出 Markdown：导入的论文没有 arXiv 链接', () => {
-    const md = toMarkdown({ id: 'pdf-0123456789abcdef0123', version: '', title: 'T' }, []);
-    expect(md).toBe('# T（导入的 PDF） 笔记\n');
-    expect(md).not.toContain('arxiv.org');
   });
 });

@@ -125,3 +125,8 @@ export const PANEL_CLOSE_ICON = svg(`
   <rect width="18" height="18" x="3" y="3" rx="2"/>
   <path d="M9 3v18"/>
   <path d="m16 15-3-3 3-3"/>`);
+
+/** 引号：复制引用 */
+export const QUOTE_ICON = svg(`
+  <path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>
+  <path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/>`);

@@ -158,6 +158,11 @@ export function paperUrl(id: string, version = ''): string {
   return `https://arxiv.org/html/${id}${version}`;
 }
 
+/** 摘要页；不带版本时总是最新版本 */
+export function absUrl(id: string, version = ''): string {
+  return `https://arxiv.org/abs/${id}${version}`;
+}
+
 /** 元素的可读文本：去掉脚注，公式换成 TeX，空白折叠 */
 function cleanText(el: Element): string {
   const c = el.cloneNode(true) as Element;

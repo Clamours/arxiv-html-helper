@@ -1,15 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Group } from '../src/core/groups';
-import {
-  countViews,
-  entriesToMarkdown,
-  groupLibrary,
-  inView,
-  searchLibrary,
-  sortByDocumentOrder,
-  sortLibrary,
-  toMarkdown,
-} from '../src/core/library';
+import { countViews, groupLibrary, inView, searchLibrary, sortLibrary } from '../src/core/library';
 import { extractMeta, type PaperMeta } from '../src/core/paper';
 import type { Annotation } from '../src/core/types';
 
@@ -122,21 +113,6 @@ describe('排序与搜索', () => {
   });
 });
 
-it('sortByDocumentOrder：摘要 → 正文（数字自然序）→ 附录 → 参考文献', () => {
-  const keys = ['#bib.bib3', '#A1.p1.1', '#S10.p1.1', '#S2.p3.1', '#S2.p10.1', '#p1.1', '#S2.F1>figcaption:0'];
-  const sorted = sortByDocumentOrder(keys.map((key) => ann({ key }))).map((a) => a.segments[0]!.blockKey);
-  expect(sorted).toEqual(['#p1.1', '#S2.F1>figcaption:0', '#S2.p3.1', '#S2.p10.1', '#S10.p1.1', '#A1.p1.1', '#bib.bib3']);
-});
-
-it('toMarkdown 带标题', () => {
-  const md = toMarkdown({ id: '1706.03762', version: 'v7', title: 'Attention' }, [
-    ann({ exact: '注意力', layer: 'translation', note: '重点' }),
-  ]);
-  expect(md).toContain('# Attention（arXiv 1706.03762v7） 笔记');
-  expect(md).toContain('https://arxiv.org/html/1706.03762v7');
-  expect(md).toContain('> 注意力（译文）\n\n重点');
-});
-
 describe('extractMeta', () => {
   it('提取标题（去脚注、公式转 TeX）和作者（只取第一行）', () => {
     document.body.innerHTML = `
@@ -187,20 +163,4 @@ describe('侧栏视图', () => {
       all: 4, flagged: 1, ungrouped: 3, 'group:rl': 1, 'group:agent': 1,
     });
   });
-});
-
-it('entriesToMarkdown 合并多篇论文，跳过没有笔记的', () => {
-  const lib = sortLibrary(
-    groupLibrary({
-      'paper:A': [ann({ exact: 'alpha', updatedAt: 2 })],
-      'meta:A': meta('A'),
-      'meta:B': meta('B'),
-      'paper:C': [ann({ exact: 'gamma', updatedAt: 1 })],
-    }),
-    'recent-note',
-  );
-  const md = entriesToMarkdown(lib);
-  expect(md).not.toContain('Title B');
-  expect(md.indexOf('> alpha')).toBeLessThan(md.indexOf('> gamma'));
-  expect(md).toContain('\n---\n\n# ');
 });

@@ -3,16 +3,13 @@ import './style.css';
 import { fetchArxivMeta } from '@/core/arxiv-api';
 import { GROUPS_KEY, normalizeGroups, type Group } from '@/core/groups';
 import {
-  entriesToMarkdown,
   groupLibrary,
   groupsOf,
   groupView,
   inView,
   searchLibrary,
-  sortByDocumentOrder,
   sortLibrary,
   titleOf,
-  toMarkdown,
   type LibraryEntry,
   type SearchResult,
   type SortKey,
@@ -25,16 +22,16 @@ import { initImportUi } from './import-ui';
 import { initSyncUi } from './sync-ui';
 import { createNav, viewLabel } from './nav';
 import { toast } from './toast';
-import type { Annotation } from '@/core/types';
+import { citationOf } from '@/shared/citation';
 import { groupChip, openGroupPicker, pickerKey } from '@/shared/group-picker';
 import {
   CHECK_ICON,
   CHEVRON_ICON,
-  COPY_ICON,
   FLAG_ICON,
   HIGHLIGHTER_ICON,
   INBOX_ICON,
   PLUS_ICON,
+  QUOTE_ICON,
   SEARCH_ICON,
   TAG_ICON,
   TRASH_ICON,
@@ -53,7 +50,7 @@ $('sort-icon').innerHTML = CHEVRON_ICON;
 const backupUi = initBackupUi();
 const importUi = initImportUi();
 initSyncUi();
-const nav = createNav($('nav'), { onSelect: setView, onCopyGroup: copyGroup });
+const nav = createNav($('nav'), { onSelect: setView });
 
 const SORT_STORAGE_KEY = 'library-sort';
 const VIEW_STORAGE_KEY = 'library-view';
@@ -90,17 +87,6 @@ function setView(next: View): void {
   remember(VIEW_STORAGE_KEY, next);
   render();
   scrollTo({ top: 0 });
-}
-
-async function copyGroup(group: Group): Promise<void> {
-  const inGroup = sortLibrary(entries, sort.value as SortKey).filter((e) => inView(e, groupView(group.id), groups));
-  const withNotes = inGroup.filter((e) => e.annotations.length);
-  if (!withNotes.length) {
-    toast(`「${group.name}」里的论文还没有划线`);
-    return;
-  }
-  await navigator.clipboard.writeText(entriesToMarkdown(withNotes));
-  toast(`已复制「${group.name}」中 ${withNotes.length} 篇论文的笔记`);
 }
 
 // ---- 从 arXiv API 补全标题、作者、摘要等 ----
@@ -172,7 +158,6 @@ function emptyView(): HTMLElement {
 /** 列表中的一项：标题，作者和元信息，最后一行是分组和评分；操作按钮悬停时显示 */
 function paperRow({ entry, matched, noteHit }: SearchResult, terms: string[]): HTMLElement {
   const row = el('article', 'paper');
-  const all = sortByDocumentOrder(entry.annotations);
 
   const text = el('div', 'paper-text');
   const h2 = el('h2', '');
@@ -209,8 +194,9 @@ function paperRow({ entry, matched, noteHit }: SearchResult, terms: string[]): H
   idSpan.append(highlight(imported ? `PDF · ${entry.meta?.doc?.fileName || '导入'}` : `${entry.id}${entry.version}`, terms));
   meta.append(idSpan);
   if (entry.meta?.published) meta.append(el('span', '', entry.meta.published.slice(0, 4)));
+  const n = entry.annotations.length;
   const withNote = entry.annotations.filter((a) => a.note.trim()).length;
-  meta.append(el('span', '', all.length ? `${all.length} 条划线` : '未划线'));
+  meta.append(el('span', '', n ? `${n} 条划线` : '未划线'));
   if (withNote) meta.append(el('span', '', `${withNote} 条笔记`));
   const opened = entry.meta?.lastOpenedAt ?? 0;
   const [whenLabel, at] = entry.lastNoteAt ? ['更新于', entry.lastNoteAt] : opened ? ['打开于', opened] : ['', 0];
@@ -226,7 +212,7 @@ function paperRow({ entry, matched, noteHit }: SearchResult, terms: string[]): H
 
   const actions = el('div', 'paper-actions');
   actions.append(flagButton(entry));
-  if (all.length) actions.append(copyButton(entry, all));
+  if (!imported) actions.append(citeButton(entry));
   actions.append(deleteButton(entry));
   // 最后一行横跨文字和操作按钮两列，评分和操作按钮右对齐
   row.append(text, actions, groupChips(entry));
@@ -257,16 +243,30 @@ function flagButton(entry: LibraryEntry): HTMLButtonElement {
   return b;
 }
 
-function copyButton(entry: LibraryEntry, all: Annotation[]): HTMLButtonElement {
-  const b = iconButton('复制为 Markdown', COPY_ICON, async () => {
-    await navigator.clipboard.writeText(toMarkdown({ id: entry.id, version: entry.version, title: entry.meta?.title }, all));
+/** 复制 BibTeX；还没有 arXiv 的信息时先获取（写入后列表会重新渲染，所以另外用提示条告知结果） */
+function citeButton(entry: LibraryEntry): HTMLButtonElement {
+  const label = '复制引用（BibTeX）';
+  const b = iconButton(label, QUOTE_ICON, async () => {
+    let bib: string | null = null;
+    try {
+      bib = await citationOf(entry.id);
+      if (bib) await navigator.clipboard.writeText(bib);
+    } catch {
+      toast('复制失败，请重试');
+      return;
+    }
+    if (!bib) {
+      toast('没能从 arXiv 获取这篇论文的信息，请稍后再试');
+      return;
+    }
+    toast('已复制 BibTeX 引用');
     b.innerHTML = CHECK_ICON;
     b.classList.add('done');
     b.title = '已复制';
     setTimeout(() => {
-      b.innerHTML = COPY_ICON;
+      b.innerHTML = QUOTE_ICON;
       b.classList.remove('done');
-      b.title = '复制为 Markdown';
+      b.title = label;
     }, 1500);
   });
   return b;
