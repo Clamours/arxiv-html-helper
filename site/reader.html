@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  导入论文的阅读页：空壳页面，扩展的内容脚本把本机 IndexedDB 里的论文页面填进来（见 src/import/reader.ts）。
+  导入论文的阅读页：空壳页面，扩展的内容脚本把本机 IndexedDB 里的论文页面填进来（见 src/imported/reader.ts）。
   论文以 https 网址打开，ChatGPT 侧边栏等只读 http/https 页面的扩展才能读到正文。
   填入时只删掉带 data-ahh-shell 的元素，其他扩展（翻译插件等）已经插入的样式和界面保留
 -->
@@ -12,15 +12,15 @@
   <title data-ahh-shell>arXiv HTML Helper</title>
   <link rel="icon" href="icon-32.png" sizes="32x32">
   <style data-ahh-shell>
-    :root { color-scheme: light dark; --bg: #faf8f5; --text: #1d1d1f; --muted: #6e6e73; --accent: #b31b1b; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #161514; --text: #f2f0ed; --muted: #a19d97; --accent: #e0504a; } }
-    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', sans-serif; }
+    :root { color-scheme: light dark; --bg: #fff; --text: #0d0d0d; --muted: #8f8f8f; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #161616; --text: #ececec; --muted: #8e8e8e; } }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; -webkit-font-smoothing: antialiased; }
     /* 装了扩展时页面马上会被论文替换，说明晚一点再显示，免得一闪而过 */
     main { max-width: 34em; margin: 18vh auto 0; padding: 0 16px; opacity: 0; animation: show .3s 1.5s forwards; }
     @keyframes show { to { opacity: 1; } }
     p { margin: 0 0 1em; }
     p[lang="en"] { color: var(--muted); }
-    a { color: var(--accent); }
+    a { color: inherit; text-underline-offset: 3px; }
   </style>
 </head>
 <body>
