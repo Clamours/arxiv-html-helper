@@ -28,15 +28,15 @@
 
 arXiv 的 HTML 版论文适合在浏览器里读，配合沉浸式翻译、陪读蛙还能对照译文阅读。但想边读边划重点、记笔记时，浏览器本身做不到；常见的网页划线工具靠改写页面来标记文字，和翻译插件一起用时容易互相干扰。
 
-arXiv HTML Helper 专为这种读法设计：原文和译文上都能划线、写笔记，翻译插件怎么重新渲染页面都不会丢；读过的论文自动收进论文库，可以分组、评分、搜索，并在多台电脑之间同步。
+arXiv HTML Helper 专为这种读法设计：原文和译文上都能划线、写笔记，翻译插件怎么重新渲染页面都不会丢；读过的论文自动收进论文库，可以分组、评分、搜索，查看摘要、写整篇论文的笔记，并在多台电脑之间同步。
 
 ## 功能
 
 - **划线与笔记**：选中文字弹出工具栏，五种颜色一键高亮，或者高亮后直接写笔记；点击已有的高亮可以改色、编辑、删除
 - **原文和译文都能划**：支持沉浸式翻译、陪读蛙的双语对照。高亮不修改页面结构，翻译插件重新渲染时也不会丢
 - **译文存档**：翻译插件显示过的译文按段落自动存档。下次打开时不开翻译插件也能看到，措辞不变，译文上的笔记也不会漂移
-- **侧边栏**：按原文顺序列出本篇的所有笔记，点击跳回原文位置；整篇笔记可以一键复制为 Markdown
-- **论文库**：读过的论文自动收录，标题和作者从 arXiv 获取；支持分组、标记、五星评分和多种排序，可以按标题、作者、划线和笔记内容搜索
+- **侧边栏**：按原文顺序列出本篇的所有笔记，点击跳回原文位置；可以一键复制这篇论文的 BibTeX 引用
+- **论文库**：读过的论文自动收录，标题和作者从 arXiv 获取；支持分组、标记、五星评分和多种排序，可以按标题、作者、划线和笔记内容搜索。点开一篇论文，右侧显示摘要、主分类、DOI、发表信息，还可以写整篇论文的笔记、复制 BibTeX 引用
 - **同步与备份**：通过 WebDAV（坚果云、Nextcloud、群晖等）或 Google Drive 在多台电脑之间同步，也可以导出、导入备份文件
 - **导入 PDF**：没有 HTML 版本的论文，可以用 MinerU 把 PDF 转成同样结构的页面，一样能划线、翻译
 
@@ -51,13 +51,13 @@ arXiv HTML Helper 专为这种读法设计：原文和译文上都能划线、�
     <td width="50%">
       <picture>
         <source media="(prefers-color-scheme: dark)" srcset="site/img/library-dark.webp">
-        <img src="site/img/library-light.webp" alt="论文库：左侧是分组，右侧是带分组、标记和评分的论文列表">
+        <img src="site/img/library-light.webp" alt="论文库：左侧是分组，中间是带分组、标记和评分的论文列表，右侧是选中论文的摘要、DOI 和论文笔记">
       </picture>
     </td>
   </tr>
   <tr>
     <td align="center">在译文上划线、写笔记</td>
-    <td align="center">论文库：分组、评分、搜索</td>
+    <td align="center">论文库：点开论文看摘要、DOI 和笔记</td>
   </tr>
 </table>
 
@@ -85,11 +85,11 @@ arXiv HTML Helper 专为这种读法设计：原文和译文上都能划线、�
 
 ## 隐私
 
-扩展没有自己的服务器，不收集、不统计任何数据，也不含广告和分析代码。笔记、论文库和译文存档默认只保存在本机浏览器里；开启云同步后，只写到你自己的 WebDAV 服务器或 Google Drive。论文库会向 arXiv API 查询标题和作者，导入 PDF 时文件会上传到 MinerU 解析。详见[隐私政策](https://clamours.github.io/arxiv-html-helper/privacy.html)。
+扩展没有自己的服务器，不收集、不统计任何数据，也不含广告和分析代码。笔记、论文库和译文存档默认只保存在本机浏览器里；开启云同步后，只写到你自己的 WebDAV 服务器或 Google Drive。论文库和复制引用时会向 arXiv API 查询标题、作者、摘要等论文信息，导入 PDF 时文件会上传到 MinerU 解析。详见[隐私政策](https://clamours.github.io/arxiv-html-helper/privacy.html)。
 
 ## 文档
 
-- [使用说明](docs/usage.md)：侧边栏、论文库、分组、评分、备份
+- [使用说明](docs/usage.md)：侧边栏、论文库、详情面板、复制引用、分组、评分、备份
 - [译文存档](docs/saved-translations.md)：译文怎样存档、什么时候更新
 - [云同步](docs/sync.md)：WebDAV 和 Google Drive 的设置、合并规则
 - [导入 PDF](docs/import.md)：用 MinerU 把 PDF 转成可以划线的论文页面
@@ -113,6 +113,6 @@ npm test
 
 ## English
 
-arXiv HTML Helper is a Chrome extension for highlighting and taking notes on arXiv HTML papers, on the original text and on translations shown by Immersive Translate or Read Frog. Highlights never modify the page, so they survive when the translator re-renders it, and translated paragraphs are saved so notes on them never drift. Papers you read go into a library with groups, ratings and full-text search, synced across computers via WebDAV or Google Drive.
+arXiv HTML Helper is a Chrome extension for highlighting and taking notes on arXiv HTML papers, on the original text and on translations shown by Immersive Translate or Read Frog. Highlights never modify the page, so they survive when the translator re-renders it, and translated paragraphs are saved so notes on them never drift. Papers you read go into a library with groups, ratings, full-text search, abstracts, paper-level notes and one-click BibTeX, synced across computers via WebDAV or Google Drive.
 
 The interface is in Chinese. Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/hckjdjhkldddjpaecpkpicfmpfggpfie), or read more on the [project website](https://clamours.github.io/arxiv-html-helper/?lang=en).

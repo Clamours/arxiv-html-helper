@@ -4,14 +4,15 @@ import { PAPER_PREFIX } from '../../src/core/library';
 import type { PageState } from '../../src/core/messages';
 import type { HighlightColor } from '../../src/core/types';
 import { sleep, type Browser, type Page } from './cdp';
-import { libraryStorage, PAPER_ID, pageStorage, syncStatus } from './fixtures';
+import { DETAIL_PAPER_ID, libraryStorage, PAPER_ID, pageStorage, syncStatus } from './fixtures';
 
 /**
  * 截图：联网打开 arxiv.org 上的论文页，在隔离环境里运行扩展的内容脚本（和真实安装时一样），
  * 现场划线、写笔记、插入模拟的沉浸式翻译译文；再用这篇论文的数据打开侧边栏、论文库页面。
  *
  * 截图一律按 2 倍像素存到 rawDir/<名称>-<light|dark>.png，合成时按一半尺寸显示：
- * - store-*：商店截图用，只截浅色。尺寸都是商店截图里浏览器窗口内容区的 1120×588（论文页 + 侧边栏是 760 + 360）
+ * - store-*：商店截图用，只截浅色。尺寸都是商店截图里浏览器窗口内容区的 1120×588（论文页 + 侧边栏是 760 + 360）。
+ *   论文库要宽一些才能和详情面板并排、云同步弹窗比窗口高，这两张按更大的窗口截，再整体缩小到同样的像素尺寸
  * - site-*：主页配图用，浅色、深色各截一张
  */
 
@@ -157,11 +158,21 @@ export async function capture(env: CaptureEnv, theme: Theme): Promise<void> {
     await library.goto(`${env.origin}/library.html`);
     await library.waitFor(`!!document.querySelector('.paper')`);
   };
+  /** 点开一篇论文：详情面板和列表并排（窗口宽于 1180 时） */
+  const openDetail = async () => {
+    await library.evaluate(`document.querySelector('.paper[data-id=${js(DETAIL_PAPER_ID)}] .meta').click()`);
+    await library.waitFor(`!document.getElementById('detail').hidden && !!document.querySelector('.abstract')`);
+    await sleep(400); // 面板的出现动画
+  };
   if (store) {
-    await openLibrary(1120, 588);
+    // 4：按 1200×630 的窗口截，像素尺寸和其他截图相同，相当于整体缩小到 1120/1200
+    await openLibrary(1200, 630, (2 * 1120) / 1200);
+    await openDetail();
     await shot(library, 'store-4');
   }
-  await openLibrary(1120, 700);
+  // 高一些，详情面板里能看到摘要的开头
+  await openLibrary(1240, 880);
+  await openDetail();
   await shot(library, 'site-library');
   if (store) {
     // 5：云同步设置。弹窗比窗口高，按 1.15 倍的窗口截，像素尺寸和其他截图相同，相当于整体缩小到 1/1.15

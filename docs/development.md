@@ -63,9 +63,9 @@ src/
                    → anchor.ts（选区 ↔ 片段，模糊匹配）
     数据           types.ts（笔记、片段、颜色）、paper.ts（论文 id、元数据、阅读页网址）、
                    messages.ts（各页面、background、内容脚本之间的消息）
-    存储           storage.ts：paper:<id> 存笔记，meta:<id> 存标题、作者等，shelf:<id> 存所属分组、标记和评分，
-                   groups 存全部分组的定义，tomb:<id> 和 groups-deleted 存删除记录（云同步用）
-    论文库         library.ts（汇总、过滤、排序、搜索、Markdown 导出）、groups.ts（分组、标记、评分）
+    存储           storage.ts：paper:<id> 存笔记，meta:<id> 存标题、作者、摘要等，shelf:<id> 存所属分组、标记和评分，
+                   note:<id> 存论文笔记，groups 存全部分组的定义，tomb:<id> 和 groups-deleted 存删除记录（云同步用）
+    论文库         library.ts（汇总、过滤、排序、搜索、论文笔记）、groups.ts（分组、标记、评分）、citation.ts（BibTeX）
     合并规则       sync.ts（云同步）、backup.ts（备份）、tombstones.ts（删除记录）、
                    translations.ts（译文存档，含 HTML 清洗）、docs.ts（导入论文的页面）
   content/       内容脚本：app.ts 把各部分串起来；highlighter.ts 渲染高亮，ui.ts 是划词工具栏和笔记编辑框，
@@ -75,8 +75,8 @@ src/
   import/        导入 PDF：MinerU 解析 → arXiv（LaTeXML）风格的 HTML。各文件的分工见 import.md
   imported/      导入论文的本机存储（IndexedDB，也暂存导入中的 PDF），以及在阅读页里打开论文
   sync/          云同步：设置、WebDAV / Google Drive、同步流程、background 里的调度
-  shared/        侧边栏、论文库和内容脚本共用的界面：主题、图标、色块、弹出层、分组菜单、评分
-  entrypoints/   WXT 入口：content、background、sidepanel、library（论文库页，含同步、备份、导入 PDF 的界面）
+  shared/        侧边栏、论文库和内容脚本共用的界面：主题、图标、色块、弹出层、分组菜单、评分、复制引用
+  entrypoints/   WXT 入口：content、background、sidepanel、library（论文库页，含详情面板和同步、备份、导入 PDF 的界面）
 tests/                     单元测试（Vitest + jsdom），fixtures/ 是测试用的页面和 API 响应
 scripts/capture-dom.js     在真实页面上抓取翻译插件的 DOM，用于核对选择器
 scripts/mineru-to-html.ts  把 MinerU 导出的 Markdown 转成 HTML 文件（npm run mineru）

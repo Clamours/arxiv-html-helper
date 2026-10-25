@@ -32,10 +32,11 @@
 
 ■ 侧边栏
 · 点击工具栏里的扩展图标打开侧边栏，按文档顺序列出本篇的所有笔记，点击跳转到原文位置
-· 整篇笔记可以复制为 Markdown
+· 一键复制这篇论文的 BibTeX 引用
 
 ■ 论文库
 · 浏览过的论文自动收进论文库，标题、作者、年份从 arXiv 获取
+· 点开论文查看摘要、主分类、DOI、发表信息，写整篇论文的笔记
 · 分组（类似标签）、标记、多种排序；可按标题、作者、论文 id、划线和笔记内容搜索
 · 导出 / 导入备份文件，用于换电脑或定期备份
 
@@ -60,8 +61,8 @@ Highlight and take notes on arXiv HTML papers — on the original text and on tr
 · Highlight in five colors and attach notes; click a highlight to recolor, edit or delete it
 · Highlights never modify the page, so they survive when translation extensions re-render it
 · Saved translations: translated paragraphs are kept, so notes on them never drift
-· Side panel with all notes of the paper in document order; copy them as Markdown
-· Paper library with groups, stars, sorting and full-text search; backup export / import
+· Side panel with all notes of the paper in document order; copy the paper's BibTeX citation
+· Paper library with groups, stars, sorting and full-text search; a detail pane with the abstract, category, DOI and a note on the whole paper; backup export / import
 · Sync across computers via WebDAV
 · Import PDFs (parsed by MinerU) as arXiv-style pages you can annotate
 
@@ -93,7 +94,7 @@ Open source (MIT): https://github.com/Clamours/arxiv-html-helper
 1. 论文页上有几处不同颜色的高亮，选中文字弹出工具栏
 2. 论文页和侧边栏，侧边栏按原文顺序列出本篇笔记
 3. 沉浸式翻译的双语译文，在译文上划线、打开笔记编辑框
-4. 论文库：分组、评分、搜索
+4. 论文库：左边是带分组和评分的论文列表，右边是一篇论文的详情面板（分类、DOI、发表信息、论文笔记）
 5. 云同步设置
 
 ## 隐私权规范（Privacy practices）
@@ -123,7 +124,7 @@ Users accumulate notes on many papers over time, and the extension stores saved 
 **sidePanel**
 
 ```text
-The main UI: clicking the toolbar icon opens a side panel listing all highlights and notes of the current paper in document order, with jump-to-location, Markdown export and the paper's groups.
+The main UI: clicking the toolbar icon opens a side panel listing all highlights and notes of the current paper in document order, with jump-to-location, BibTeX citation copy and the paper's groups.
 ```
 
 **alarms**
@@ -147,7 +148,7 @@ Used only for optional Google Drive sync: chrome.identity.getAuthToken obtains a
 **主机权限（Host permission）**
 
 ```text
-- https://export.arxiv.org/*: the paper library fetches titles, authors and years of papers the user has opened from the official arXiv API (only arXiv ids are sent).
+- https://export.arxiv.org/*: the paper library (and the side panel, when the user copies a citation) fetches titles, authors, years, abstracts, categories and DOIs of papers the user has opened from the official arXiv API (only arXiv ids are sent).
 - Content scripts on arxiv.org/html/*, ar5iv.org/html/* and ar5iv.labs.arxiv.org/html/*: render highlights and the note toolbar on arXiv HTML paper pages, which is the extension's single purpose.
 - Content script on file:///*: earlier versions opened papers imported from PDF as local HTML files, and those files keep working. The script only activates on pages that contain the extension's <meta name="ahh-paper-id"> marker and does nothing on any other local file. This also requires the user to turn on "Allow access to file URLs" themselves.
 - Optional https://*/* and http://*/*: NOT granted at install. They are requested at runtime via chrome.permissions.request, limited to the specific origins needed, only when the user turns on a feature that needs it: the WebDAV server URL the user typed in (any host, possibly self-hosted or on a LAN over http), the Google Drive API, or the MinerU API, upload and result CDN hosts and the extension's own reader page on clamours.github.io for "Import PDF". The exact hosts cannot be known in advance, which is why they are declared as optional wildcards.
