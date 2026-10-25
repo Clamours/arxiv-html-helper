@@ -77,8 +77,8 @@ MinerU 输出的引用只是普通文字。生成页面时把正文、图注、�
 - 论文库打开 `https://clamours.github.io/arxiv-html-helper/reader.html?id=<论文 id>`。这是一个空壳页面，内容脚本向 background 要来 IndexedDB 里的论文 HTML，填进页面（`src/content/reader.ts`）。论文内容不经过网络，GitHub 只收到对空壳页面的请求（网址里带着论文 id）；打开论文需要联网
 - 填入时只删掉空壳自己的元素（带 `data-ahh-shell`），`<html>`、`<head>`、`<body>` 本身和其他扩展已经插入的样式、界面都保留，翻译插件看到的是一次普通的页面更新
 - 为什么是 https 页面：翻译插件不能在其他扩展的页面（`chrome-extension://`）里工作；本地文件（`file://`）上翻译插件可以工作，但 ChatGPT 侧边栏这类扩展只读 http/https 页面，在 `file://` 上读不到正文、不能划线提问（它读取标签页正文的条件见上文"使用"）
-- 阅读页的访问权限（`https://clamours.github.io/*`）是可选权限，导入或打开论文时申请。阅读页的内容脚本不写在 manifest 里，有权限时用 `chrome.scripting.registerContentScripts` 注册（`src/import/reader.ts`）：写进 manifest 会新增安装时的权限提示，已安装的用户更新后扩展会被停用、要手动重新启用
-- 从论文库移除这篇论文时，IndexedDB 里的页面一起删除
+- 阅读页的访问权限（`https://clamours.github.io/*`）是可选权限，导入或打开论文时申请。阅读页的内容脚本不写在 manifest 里，有权限时用 `chrome.scripting.registerContentScripts` 注册（`src/imported/reader.ts`）：写进 manifest 会新增安装时的权限提示，已安装的用户更新后扩展会被停用、要手动重新启用
+- 从论文库移除这篇论文时，IndexedDB 里的页面一起删除；开启云同步时，云端和其他电脑上的页面在下次同步时删除
 
 早期版本把页面写到"下载/arxiv-html-helper/"文件夹、以 `file://` 打开。这些文件仍然可以打开和划线（需要"允许访问文件网址"）：内容脚本仍然注入所有 `file://` 页面，但只在 `<head>` 里有 `<meta name="ahh-paper-id" content="pdf-…">` 的页面上启用。扩展已经没有 `downloads` 权限，移除论文时不会删除这些文件，需要自己删。
 
@@ -86,9 +86,11 @@ MinerU 输出的引用只是普通文字。生成页面时把正文、图注、�
 
 ## 云同步
 
-导入论文的笔记、分组、标记和其他论文一样同步。论文页面本身还不同步：在另一台电脑上能看到这篇论文和笔记，但要打开页面需要在那台电脑上也导入同一个 PDF。
+导入论文的笔记、分组、标记和其他论文一样同步。论文页面也同步：每篇一个文件 `arxiv-notes-page-<论文 id>.json`，另有索引 `arxiv-notes-pages.json` 记录云端每篇页面的 SHA-256。本机没有的页面下载，云端没有的上传，所以在另一台电脑上不用重新导入就能打开；下载时校验 SHA-256，对不上的不保存，由有这篇页面的电脑重新上传（`src/sync/docs.ts`）。
 
-论文库的元数据里记录了页面的 SHA-256 和导入时间（`meta:<id>` 的 `doc` 字段）。两台电脑各自导入过同一个 PDF 时（MinerU 两次的结果可能略有不同），同步后以**先导入的一份**为准。
+论文库的元数据里记录了页面的 SHA-256 和导入时间（`meta:<id>` 的 `doc` 字段）。两台电脑各自导入过同一个 PDF 时（MinerU 两次的结果可能略有不同），元数据和云端的页面以**先导入的一份**为准；本机已经有的页面不替换（本机的划线是在它上面定位的），没有页面的电脑下载先导入的那份。
+
+没开云同步时，"导出备份"同样带上页面（一篇 1 MB 左右，备份文件会大一些），"导入备份"时恢复本机没有的页面。
 
 ## 实现
 
@@ -99,12 +101,13 @@ src/import/
   bundle.ts      结果 zip → 单文件 HTML（解析 full.md 和截图位置，图片从原 PDF 取、内嵌为 data: URL）
   pdf-figures.ts 从原 PDF 找图：定位（纯函数）、取原图编码 PNG、渲染区域
   pdf-loader.ts  在论文库页里加载 pdf.js（worker、数据文件地址）
-  mineru.ts      MinerU Markdown 的解析，见 README
+  mineru.ts      解析 MinerU 的 Markdown：按编号推断标题层级，把图片、子图注、图注 / 表注配对
   citations.ts   识别正文里的文献引用、对应到参考文献条目
   crossrefs.ts   识别对图、表、节、公式、定理的引用
   latexml.ts     渲染成 arXiv（LaTeXML）结构
   page.ts        完整页面：样式、<html lang>、论文 id
-  docs.ts        IndexedDB：页面 HTML；导入期间暂存的 PDF
+src/imported/
+  db.ts          IndexedDB：页面 HTML（按 SHA-256 建了索引，云同步时只读指纹）；导入期间暂存的 PDF
   reader.ts      在阅读页里打开：替阅读页取页面 HTML、按权限注册阅读页的内容脚本
 ```
 

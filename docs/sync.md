@@ -9,7 +9,7 @@
 
 ## 何时同步
 
-- 本机有改动（划线、笔记、分组、标记、删除）后几秒自动上传
+- 本机有改动（划线、笔记、分组、标记、评分、删除）后几秒自动上传
 - 按设置的间隔（默认 5 分钟）检查其他电脑的改动
 - 浏览器启动、打开论文库、打开论文页时检查一次（半分钟内同步过则跳过）
 - 同步设置里点"保存并同步"
@@ -22,7 +22,9 @@
 
 译文存档比笔记大得多，单独存放：每篇论文一个 `arxiv-notes-tr-<论文 id>.json`，另有索引 `arxiv-notes-translations.json`，同步时只下载有变化的论文。合并规则见 [saved-translations.md](saved-translations.md)。
 
-- 同一条笔记、同一个分组、同一篇论文的分组和标记：保留修改时间较新的一份
+导入 PDF 生成的论文页面同样每篇一个文件 `arxiv-notes-page-<论文 id>.json`，另有索引 `arxiv-notes-pages.json`：本机没有的下载，云端没有的上传，从论文库移除的论文，云端和其他电脑上的页面也删除。两台电脑各自导入过同一个 PDF 时以先导入的为准，见 [import.md](import.md#云同步)。
+
+- 同一条笔记、同一个分组、同一篇论文的分组、标记和评分：保留修改时间较新的一份
 - 删除也会同步：删除笔记、从论文库移除论文、删除分组时会记下删除时间（`tomb:<paperId>`、`groups-deleted`）。删除之后另一台电脑又改过的内容会保留
 - 两台电脑各自新建的同名分组合并为一个
 - 删除记录保留半年。一台电脑超过半年没同步过，它上面已经在别处删掉的内容可能会被同步回来
@@ -30,7 +32,7 @@
 
 手动"导入备份"仍然只增不删。导入时如果恢复了本机删除过的内容，这些内容的修改时间会改成导入时间，避免同步时又被删掉。
 
-实现：合并规则在 `src/core/sync.ts`、`src/core/tombstones.ts`，同步流程在 `src/sync/engine.ts`（译文存档在 `src/sync/translations.ts`），调度在 `src/sync/service.ts`（background）。
+实现：合并规则在 `src/core/sync.ts`、`src/core/tombstones.ts`，同步流程在 `src/sync/engine.ts`（译文存档在 `src/sync/translations.ts`，导入论文的页面在 `src/sync/docs.ts`），调度在 `src/sync/service.ts`（background）。
 
 ## WebDAV（以坚果云为例）
 

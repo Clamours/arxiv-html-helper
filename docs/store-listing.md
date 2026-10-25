@@ -40,11 +40,11 @@
 · 导出 / 导入备份文件，用于换电脑或定期备份
 
 ■ 云同步
-· 通过 WebDAV（坚果云、Nextcloud、群晖等）在多台电脑之间同步笔记、论文库、分组和译文存档
+· 通过 WebDAV（坚果云、Nextcloud、群晖等）在多台电脑之间同步笔记、论文库、分组、译文存档和导入论文的页面
 
 ■ 导入 PDF
 · 没有 HTML 版本的论文，可以用 MinerU 把 PDF 解析成和 arXiv HTML 相同结构的页面，同样可以划线、写笔记、用翻译插件翻译
-· 需要自备 MinerU Token。PDF 会上传到 MinerU 的服务器解析；生成的论文页面保存在本机，在项目主页的阅读页里打开，翻译插件和 ChatGPT 等侧边栏 AI 助手都能读取正文
+· 需要自备 MinerU Token。PDF 会上传到 MinerU 的服务器解析；生成的论文页面保存在本机（开启云同步后也同步到其他电脑），在项目主页的阅读页里打开，翻译插件和 ChatGPT 等侧边栏 AI 助手都能读取正文
 
 ■ 隐私
 扩展没有自己的服务器，不收集、不统计任何数据。笔记默认只保存在本机；开启云同步后只写到你自己的 WebDAV 服务器。详见隐私政策。
@@ -78,7 +78,7 @@ Open source (MIT): https://github.com/Clamours/arxiv-html-helper
 | 类别（Category） | 效率（Productivity）下的"教育"（Education）；没有这一项就选"工具"（Tools） |
 | 语言（Language） | 中文（简体） |
 | 商店图标 | `public/icon/128.png` |
-| 屏幕截图 | `store/screenshots/` 下的 5 张（1280×800），按文件名顺序上传 |
+| 屏幕截图 | `store/screenshots/` 下的 5 张（1280×800），按文件名顺序上传。用 `npm run screenshots` 生成，见下文 |
 | 小型宣传图块（440×280） | `store/promo-small.png`（源文件 `store/promo-small.html`，用 `scripts/render-icons.sh` 导出） |
 | 顶部宣传图块（1400×560） | `store/promo-marquee.png`（源文件 `store/promo-marquee.html`，同样用 `scripts/render-icons.sh` 导出） |
 | 官方网址（Official URL） | 可不填。要填的话需要先在 Google Search Console 验证网站所有权 |
@@ -86,13 +86,15 @@ Open source (MIT): https://github.com/Clamours/arxiv-html-helper
 | 支持网址（Support URL） | `https://github.com/Clamours/arxiv-html-helper/issues` |
 | 成人内容（Mature content） | 否 |
 
-截图建议（窗口调到 1280×800 左右，用 `arxiv.org/html/1706.03762v7` 这类知名论文）：
+屏幕截图和项目主页的配图（`site/img/`）由 `npm run screenshots` 生成，界面改了之后重新运行一次即可。需要 macOS、Google Chrome 和能访问 arxiv.org 的网络。脚本在 `scripts/screenshots/`：构建商店版扩展，打开 `arxiv.org/html/1706.03762v7`，在页面上运行扩展的内容脚本，现场划线、写笔记、插入模拟的沉浸式翻译译文，再截下论文页、侧边栏和论文库。论文库里的其他论文和云同步设置是示例数据（`scripts/screenshots/fixtures.ts`）。
+
+截图上方的标题和版式在 `store/screenshots.html`。只改标题时运行 `npm run screenshots -- --compose`，不用重新截图。五张依次是：
 
 1. 论文页上有几处不同颜色的高亮，选中文字弹出工具栏
-2. 打开侧边栏，列出本篇笔记
-3. 开着沉浸式翻译或陪读蛙，在译文上划线、写笔记
-4. 论文库页面：分组、搜索
-5. 云同步或导入 PDF 的设置界面
+2. 论文页和侧边栏，侧边栏按原文顺序列出本篇笔记
+3. 沉浸式翻译的双语译文，在译文上划线、打开笔记编辑框
+4. 论文库：分组、评分、搜索
+5. 云同步设置
 
 ## 隐私权规范（Privacy practices）
 
