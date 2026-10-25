@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  Chrome 应用商店的屏幕截图（1280×800）：上方一句标题，下方是浏览器窗口，窗口里是扩展界面的截图。
+  由 npm run screenshots 按这里的版式逐张渲染（见 scripts/screenshots/），窗口里的截图在 .output/screenshots/raw/。
+  只改了标题时运行 npm run screenshots -- --compose。生成过一次之后，也可以直接用浏览器打开本文件预览，加 ?shot=2-sidepanel 看某一张
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; }
+  body { width: 1280px; height: 800px; overflow: hidden; }
+  .stage {
+    position: relative; width: 1280px; height: 800px; overflow: hidden;
+    background: #f2f2f1; color: #0d0d0d;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif; -webkit-font-smoothing: antialiased;
+  }
+  .stage::before {
+    content: ""; position: absolute; inset: 0;
+    background: radial-gradient(1000px 380px at 50% -60px, #fff 0%, rgba(255, 255, 255, 0) 72%);
+  }
+  .head { position: relative; text-align: center; padding-top: 34px; }
+  h1 { margin: 0; font-size: 38px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; }
+  /* 荧光笔：和扩展图标、主页标题一样的黄色 */
+  .hl { background: linear-gradient(transparent 58%, #ffe45c 58%, #ffe45c 94%, transparent 94%); padding: 0 4px; margin: 0 -2px; }
+  .sub { margin: 10px 0 0; font-size: 19px; line-height: 1.5; color: #5d5d5d; letter-spacing: 0.01em; }
+
+  /* 浏览器窗口：标题栏 38px，内容区 1120×588 */
+  .window {
+    position: absolute; left: 80px; top: 150px; width: 1120px;
+    border-radius: 14px; overflow: hidden; background: #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.07), 0 2px 6px rgba(0, 0, 0, 0.04), 0 28px 70px rgba(0, 0, 0, 0.16);
+  }
+  .bar {
+    position: relative; height: 38px; display: flex; align-items: center; padding: 0 14px;
+    background: #f6f6f6; border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+  }
+  .lights { display: flex; gap: 8px; }
+  .lights i { display: block; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12); }
+  .url {
+    position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
+    width: 520px; height: 26px; border-radius: 8px; background: #ebebeb;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 13px; color: #5d5d5d;
+  }
+  .url svg { width: 12px; height: 12px; flex: none; color: #8f8f8f; }
+  .ext { margin-left: auto; width: 18px; height: 18px; }
+  .content { display: flex; height: 588px; overflow: hidden; }
+  .content img { display: block; flex: none; }
+  /* 侧边栏左边的分隔线 */
+  .side { position: relative; flex: none; }
+  .side::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 1px; background: rgba(0, 0, 0, 0.09); }
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="head">
+      <h1 id="title"></h1>
+      <p class="sub" id="sub"></p>
+    </div>
+    <div class="window">
+      <div class="bar">
+        <div class="lights"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div>
+        <div class="url">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="11" x="4" y="10.5" rx="2.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></svg>
+          <span id="url"></span>
+        </div>
+        <img class="ext" src="../public/icon/128.png" alt="">
+      </div>
+      <div class="content" id="content"></div>
+    </div>
+  </div>
+  <script>
+    const ARXIV = 'arxiv.org/html/1706.03762v7';
+    const LIBRARY = 'chrome-extension://…/library.html';
+    /**
+     * 每张截图：输出的文件名 → 标题（<span class="hl"> 是荧光笔强调）、副标题、地址栏里的网址，
+     * 以及窗口里从左到右的截图（.output/screenshots/raw/ 下的名称，由 scripts/screenshots/capture.ts 截取）
+     */
+    const SHOTS = {
+      '1-highlight': {
+        title: '选中文字，<span class="hl">一键高亮</span>',
+        sub: '五种颜色随手划，点击高亮即可改色、写笔记',
+        url: ARXIV,
+        images: ['store-1'],
+      },
+      '2-sidepanel': {
+        title: '侧边栏<span class="hl">汇总本篇笔记</span>',
+        sub: '按原文顺序排列，点击跳回原位，整篇笔记一键复制为 Markdown',
+        url: ARXIV,
+        images: ['store-2-page', 'store-2-panel'],
+      },
+      '3-translation': {
+        title: '<span class="hl">译文</span>上也能划线',
+        sub: '支持沉浸式翻译、陪读蛙的双语译文；译文自动存档，下次不开翻译插件也能看到',
+        url: ARXIV,
+        images: ['store-3'],
+      },
+      '4-library': {
+        title: '论文库：<span class="hl">分组、评分、搜索</span>',
+        sub: '浏览过的论文自动收录，标题和作者从 arXiv 获取，可按划线和笔记内容搜索',
+        url: LIBRARY,
+        images: ['store-4'],
+      },
+      '5-sync': {
+        title: '多台电脑<span class="hl">同步笔记</span>',
+        sub: '通过 WebDAV（坚果云、Nextcloud、群晖等）同步笔记、论文库和译文存档',
+        url: LIBRARY,
+        images: ['store-5'],
+      },
+    };
+
+    const shot = SHOTS[new URLSearchParams(location.search).get('shot') ?? Object.keys(SHOTS)[0]];
+    document.getElementById('title').innerHTML = shot.title;
+    document.getElementById('sub').textContent = shot.sub;
+    document.getElementById('url').textContent = shot.url;
+    shot.images.forEach((name, i) => {
+      const img = document.createElement('img');
+      // 截图是 2 倍像素，按一半尺寸显示
+      img.srcset = `../.output/screenshots/raw/${name}-light.png 2x`;
+      const side = document.createElement('span');
+      side.className = 'side';
+      side.append(img);
+      document.getElementById('content').append(i ? side : img);
+    });
+  </script>
+</body>
+</html>

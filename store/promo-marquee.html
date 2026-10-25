@@ -41,15 +41,23 @@
   .b { background: rgba(10, 132, 255, .28); }
   .gap { height: 22px; }
 
-  /* 笔记卡片 */
+  /* 笔记编辑框：和页面上的编辑框（src/content/ui.ts）同样的样式 */
   .note {
-    position: absolute; left: 1000px; top: 404px; width: 310px; box-sizing: border-box;
-    padding: 16px 20px; background: #fff; border-radius: 10px; border: 1px solid rgba(0,0,0,.1);
-    box-shadow: 0 10px 32px rgba(0,0,0,.16); font-size: 16px; line-height: 1.55; color: #1d1d1f;
+    position: absolute; left: 980px; top: 404px; width: 330px; box-sizing: border-box;
+    padding: 8px 12px 12px; background: #fff; border-radius: 14px; border: 1px solid rgba(0,0,0,.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,.06), 0 14px 36px rgba(0,0,0,.15);
+    font-size: 15px; line-height: 1.55; color: #0d0d0d;
   }
-  .note .bar { display: flex; gap: 8px; margin-bottom: 12px; }
-  .note .dot { width: 18px; height: 18px; border-radius: 50%; }
-  .note .dot.on { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1d1d1f; }
+  .note .bar { display: flex; align-items: center; margin: 0 -4px 8px; }
+  .note .dot { width: 34px; height: 34px; display: grid; place-items: center; }
+  .note .dot::before {
+    content: ''; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--c); box-shadow: inset 0 0 0 1px rgba(0,0,0,.1);
+  }
+  .note .dot.on::before { box-shadow: 0 0 0 2.5px #fff, 0 0 0 4px var(--c); }
+  .note .trash { margin-left: auto; width: 34px; height: 34px; display: grid; place-items: center; color: #8f8f8f; }
+  .note .trash svg { width: 19px; height: 19px; }
+  .note .text { padding: 9px 12px; border: 1px solid rgba(0,0,0,.12); border-radius: 9px; background: rgba(0,0,0,.025); }
 </style>
 </head>
 <body>
@@ -75,13 +83,14 @@
 
     <div class="note">
       <div class="bar">
-        <span class="dot" style="background:#ffd60a"></span>
-        <span class="dot on" style="background:#34c759"></span>
-        <span class="dot" style="background:#0a84ff"></span>
-        <span class="dot" style="background:#ff375f"></span>
-        <span class="dot" style="background:#af52de"></span>
+        <span class="dot" style="--c:#ffd60a"></span>
+        <span class="dot on" style="--c:#34c759"></span>
+        <span class="dot" style="--c:#0a84ff"></span>
+        <span class="dot" style="--c:#ff375f"></span>
+        <span class="dot" style="--c:#af52de"></span>
+        <span class="trash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg></span>
       </div>
-      核心动机：多步推理容易出错，对比第 4 节的误差累积实验。
+      <div class="text">核心动机：多步推理容易出错，对比第 4 节的误差累积实验。</div>
     </div>
   </div>
 </body>

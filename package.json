@@ -13,6 +13,7 @@
     "compile": "tsc --noEmit",
     "test": "vitest run",
     "mineru": "tsx scripts/mineru-to-html.ts",
+    "screenshots": "tsx scripts/screenshots/index.ts",
     "postinstall": "wxt prepare"
   },
   "devDependencies": {
